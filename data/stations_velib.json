@@ -1,0 +1,22 @@
+[
+  {"id": 1001, "nom": "Station Hôtel de Ville", "latitude": 48.8566, "longitude": 2.3522, "capacite": 35, "arrondissement": "75004"},
+  {"id": 1002, "nom": "Station Châtelet - Les Halles", "latitude": 48.8606, "longitude": 2.3476, "capacite": 42, "arrondissement": "75001"},
+  {"id": 1003, "nom": "Station Louvre - Rivoli", "latitude": 48.8608, "longitude": 2.3404, "capacite": 30, "arrondissement": "75001"},
+  {"id": 1004, "nom": "Station Opéra - Quatre Septembre", "latitude": 48.8693, "longitude": 2.3358, "capacite": 28, "arrondissement": "75002"},
+  {"id": 1005, "nom": "Station République", "latitude": 48.8675, "longitude": 2.3638, "capacite": 50, "arrondissement": "75011"},
+  {"id": 1006, "nom": "Station Bastille", "latitude": 48.8532, "longitude": 2.3691, "capacite": 45, "arrondissement": "75011"},
+  {"id": 1007, "nom": "Station Gare de Lyon", "latitude": 48.8448, "longitude": 2.3735, "capacite": 55, "arrondissement": "75012"},
+  {"id": 1008, "nom": "Station Place d'Italie", "latitude": 48.8314, "longitude": 2.3556, "capacite": 36, "arrondissement": "75013"},
+  {"id": 1009, "nom": "Station Montparnasse", "latitude": 48.8421, "longitude": 2.3219, "capacite": 48, "arrondissement": "75014"},
+  {"id": 1010, "nom": "Station Saint-Michel - Notre Dame", "latitude": 48.8534, "longitude": 2.3444, "capacite": 32, "arrondissement": "75005"},
+  {"id": 1011, "nom": "Station Saint-Germain-des-Prés", "latitude": 48.8538, "longitude": 2.3331, "capacite": 25, "arrondissement": "75006"},
+  {"id": 1012, "nom": "Station Tour Eiffel - Champ de Mars", "latitude": 48.8584, "longitude": 2.2945, "capacite": 40, "arrondissement": "75007"},
+  {"id": 1013, "nom": "Station Champs-Élysées - Clemenceau", "latitude": 48.8676, "longitude": 2.3126, "capacite": 35, "arrondissement": "75008"},
+  {"id": 1014, "nom": "Station Gare du Nord", "latitude": 48.8809, "longitude": 2.3553, "capacite": 60, "arrondissement": "75010"},
+  {"id": 1015, "nom": "Station Gare de l'Est", "latitude": 48.8762, "longitude": 2.3584, "capacite": 45, "arrondissement": "75010"},
+  {"id": 1016, "nom": "Station Nation", "latitude": 48.8482, "longitude": 2.3959, "capacite": 40, "arrondissement": "75012"},
+  {"id": 1017, "nom": "Station Belleville", "latitude": 48.8722, "longitude": 2.3769, "capacite": 30, "arrondissement": "75020"},
+  {"id": 1018, "nom": "Station Pigalle", "latitude": 48.8824, "longitude": 2.3371, "capacite": 28, "arrondissement": "75009"},
+  {"id": 1019, "nom": "Station Trocadéro", "latitude": 48.8629, "longitude": 2.2872, "capacite": 32, "arrondissement": "75016"},
+  {"id": 1020, "nom": "Station Porte de Versailles", "latitude": 48.8322, "longitude": 2.2866, "capacite": 38, "arrondissement": "75015"}
+]
