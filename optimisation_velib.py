@@ -11,7 +11,7 @@ Fonctionnalités avancées :
      - Par Sélection dans le Menu Déroulant
      - PAR CLIC DIRECT SUR DEUX STATIONS SUR LA CARTE INTERACTIVE
   4. Graphiques & Analytics Visuels (Matplotlib + Chart.js).
-  5. Application Web Interactive HTML (Folium + Leaflet + Toggle Delaunay + Calculateur + Chart.js).
+  5. Layout UX Pro : Layer Control en Top-Left pour zéro chevauchement avec le panneau Droit !
 """
 
 import argparse
@@ -266,7 +266,7 @@ def generer_statistiques(df, edges, weight_mst):
 
 
 def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, default_target_idx=15):
-    """Génère la carte HTML avec Delaunay Néon activable, Clic 2 stations, Dropdowns et Chart.js."""
+    """Génère la carte HTML avec disposition UX sans chevauchement (LayerControl à gauche, Panneau à droite)."""
     center_lat = df["latitude"].mean()
     center_lon = df["longitude"].mean()
     m = folium.Map(location=[center_lat, center_lon], zoom_start=11, tiles="OpenStreetMap")
@@ -305,7 +305,7 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
             fill_opacity=0.8
         ).add_to(marker_cluster)
 
-    # Groupe 1 : Triangulation de Delaunay (Violet Néon très visible)
+    # Groupe 1 : Delaunay Violet Néon
     delaunay_group = folium.FeatureGroup(name="🌐 Maillage Triangulation de Delaunay (4 536 arêtes)")
     for u, v, weight in edges:
         loc1 = [df.loc[u, "latitude"], df.loc[u, "longitude"]]
@@ -313,12 +313,12 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
         folium.PolyLine(
             locations=[loc1, loc2],
             weight=1.5,
-            color="#8B5CF6",  # Violet Néon Vif
+            color="#8B5CF6",
             opacity=0.55,
             tooltip=f"Delaunay: {weight*1000:.0f} m"
         ).add_to(delaunay_group)
 
-    # Groupe 2 : MST Réseau Optimal (Vert Émeraude)
+    # Groupe 2 : MST Vert Émeraude
     mst_group = folium.FeatureGroup(name="🟢 Réseau Optimal Optimisé (MST - 502 km)")
     for u, v, weight in mst_edges:
         loc1 = [df.loc[u, "latitude"], df.loc[u, "longitude"]]
@@ -326,15 +326,17 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
         folium.PolyLine(
             locations=[loc1, loc2],
             weight=3.0,
-            color="#10B981",  # Vert Émeraude Vif
+            color="#10B981",
             opacity=0.9,
             tooltip=f"MST: {weight*1000:.0f} m"
         ).add_to(mst_group)
 
     delaunay_group.add_to(m)
     mst_group.add_to(m)
-    folium.LayerControl(collapsed=False).add_to(m)
-    MiniMap(toggle_display=True).add_to(m)
+
+    # REPOSITIONNEMENT : LayerControl à GAUCHE pour zéro chevauchement avec le panneau de droite !
+    folium.LayerControl(position='topleft', collapsed=False).add_to(m)
+    MiniMap(toggle_display=True, position='bottomleft').add_to(m)
 
     m.save(OUTPUT_MAP)
 
@@ -353,6 +355,14 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
 
     dashboard_ui_html = f"""
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Style CSS d'ajustement pour décaler le contrôle des calques à gauche sous les zooms -->
+    <style>
+    .leaflet-top.leaflet-left {{
+        top: 80px !important;
+        left: 15px !important;
+    }}
+    </style>
 
     <!-- KPI Banner -->
     <div id="kpi-banner" style="
@@ -376,7 +386,7 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
         </div>
     </div>
 
-    <!-- Side Panel -->
+    <!-- Side Panel (À DROITE) -->
     <div id="route-panel" style="
         position: fixed; top: 80px; right: 15px; width: 350px; max-height: calc(100vh - 100px); overflow-y: auto; background: rgba(255, 255, 255, 0.95); border-radius: 14px; padding: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 9999; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; backdrop-filter: blur(10px); border: 1px solid #E2E8F0;
     ">
@@ -400,7 +410,7 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
         
         <button id="toggle-delaunay-btn" onclick="toggleDelaunayLayer()" style="
             width:100%; background:#8B5CF6; color:white; border:none; padding:9px; border-radius:6px; font-weight:bold; cursor:pointer; transition:0.2s;
-        ">🌐 Basculer Triangulation de Delaunay (On/Off)</button>
+        ">🌐 Basculer Triangulation Delaunay (On/Off)</button>
 
         <div id="route-results" style="margin-top:12px; display:none; padding:12px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
             <div style="font-weight:bold; color:#1D4ED8; margin-bottom:6px;">Résultat du trajet (Dijkstra) :</div>
@@ -651,9 +661,9 @@ def main():
     # 4. Statistiques analytiques JSON
     generer_statistiques(df, edges, weight_kruskal)
 
-    # 5. Carte HTML interactive avec Delaunay Néon + Bouton Toggle + Clic 2 stations + Chart.js
+    # 5. Carte HTML interactive avec disposition sans chevauchement (LayerControl à gauche, Panneau à droite)
     generer_carte_html_interactive(df, mst_kruskal, edges, args.depart or 0, args.arrivee or 15)
-    print(f"[✓] Carte interactive mise à jour (Triangulation Delaunay Violet Néon + Bouton Toggle) : {OUTPUT_MAP}")
+    print(f"[✓] Carte interactive mise à jour (LayerControl à GAUCHE, Panneau à DROITE - Zéro chevauchement) : {OUTPUT_MAP}")
     print("[✓] Processus terminé avec succès !")
 
 
