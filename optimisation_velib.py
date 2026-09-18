@@ -330,13 +330,22 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         })
 
         popup_html = f"""
-        <div style="font-family:sans-serif; min-width:180px;">
-            <b style="color:#1D4ED8; font-size:14px;">{row['nom']}</b><br>
-            <span>📍 Commune : {row['commune']}</span><br>
-            <span>🚲 Capacité : <b>{row['capacite']}</b> vélos</span><br><br>
+        <div style="font-family: system-ui, -apple-system, sans-serif; min-width:180px;">
+            <div style="font-weight:700; color:#1E40AF; font-size:14px; margin-bottom:4px;">{row['nom']}</div>
+            <div style="color:#475569; font-size:12px; display:flex; align-items:center; gap:5px; margin-bottom:2px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span>Commune : <b>{row['commune']}</b></span>
+            </div>
+            <div style="color:#475569; font-size:12px; display:flex; align-items:center; gap:5px; margin-bottom:8px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9.5 10l-3 3.5M12 17.5V10l3.5-4H18"/></svg>
+                <span>Capacité : <b>{row['capacite']}</b> vélos</span>
+            </div>
             <button onclick="selectStationByClick({idx})" style="
-                width:100%; background:#2563EB; color:white; border:none; padding:6px; border-radius:4px; font-weight:bold; cursor:pointer;
-            ">Sélectionner pour itinéraire</button>
+                width:100%; background:#2563EB; color:white; border:none; padding:6px 8px; border-radius:4px; font-weight:600; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;
+            ">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                <span>Sélectionner pour itinéraire</span>
+            </button>
         </div>
         """
         folium.CircleMarker(
@@ -378,7 +387,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
             fill=True,
             fill_color=color,
             fill_opacity=opacity,
-            tooltip=f"Triangle Delaunay<br>Surface : <b>{area_str}</b><br>Couleur : {'Sombre (superficie réduite)' if opacity > 0.5 else 'Claire (grande superficie)'}"
+            tooltip=f"Triangle Delaunay<br>Surface : <b>{area_str}</b><br>Densité : {'Forte (couleur sombre)' if opacity > 0.5 else 'Faible (couleur claire)'}"
         ).add_to(delaunay_group)
 
     mst_group = folium.FeatureGroup(name="Réseau Optimal (MST - 502 km)")
@@ -422,27 +431,72 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         top: 80px !important;
         left: 15px !important;
     }}
+    .kpi-card {{
+        background: rgba(15, 23, 42, 0.92);
+        color: white;
+        padding: 8px 14px;
+        border-radius: 8px;
+        backdrop-filter: blur(8px);
+        border: 1px solid #334155;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }}
+    .kpi-icon {{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.1);
+    }}
+    .ui-flex {{
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }}
     </style>
 
-    <!-- Bandeau KPI -->
+    <!-- Bandeau KPI avec icônes SVG -->
     <div id="kpi-banner" style="
         position: fixed; top: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 9999; font-family: system-ui, -apple-system, sans-serif;
     ">
-        <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid #334155; text-align: center;">
-            <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Stations</div>
-            <div style="font-size: 18px; font-weight: bold; color: #38BDF8;">1 518</div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="color: #38BDF8;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <div>
+                <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Stations</div>
+                <div style="font-size: 17px; font-weight: bold; color: #38BDF8;">1 518</div>
+            </div>
         </div>
-        <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid #334155; text-align: center;">
-            <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Bornettes & Vélos</div>
-            <div style="font-size: 18px; font-weight: bold; color: #34D399;">49 060</div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="color: #34D399;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9.5 10l-3 3.5M12 17.5V10l3.5-4H18"/></svg>
+            </div>
+            <div>
+                <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Bornettes & Vélos</div>
+                <div style="font-size: 17px; font-weight: bold; color: #34D399;">49 060</div>
+            </div>
         </div>
-        <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid #334155; text-align: center;">
-            <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Réseau MST</div>
-            <div style="font-size: 18px; font-weight: bold; color: #FBBF24;">502.09 km</div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="color: #FBBF24;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><circle cx="12" cy="6" r="3"/><path d="M8.5 17l2.5-8.5M15.5 17l-2.5-8.5"/></svg>
+            </div>
+            <div>
+                <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Réseau MST</div>
+                <div style="font-size: 17px; font-weight: bold; color: #FBBF24;">502.09 km</div>
+            </div>
         </div>
-        <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid #334155; text-align: center;">
-            <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Communes IDF</div>
-            <div style="font-size: 18px; font-weight: bold; color: #F472B6;">69</div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="color: #F472B6;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+            </div>
+            <div>
+                <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Communes IDF</div>
+                <div style="font-size: 17px; font-weight: bold; color: #F472B6;">69</div>
+            </div>
         </div>
     </div>
 
@@ -450,7 +504,10 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     <div id="route-panel" style="
         position: fixed; top: 80px; right: 15px; width: 340px; max-height: calc(100vh - 100px); overflow-y: auto; background: rgba(255, 255, 255, 0.96); border-radius: 12px; padding: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 9999; font-family: system-ui, -apple-system, sans-serif; font-size: 13px; backdrop-filter: blur(8px); border: 1px solid #E2E8F0;
     ">
-        <h3 style="margin:0 0 8px 0; color:#1E293B; font-size:15px;">Calculateur d'Itinéraire (Dijkstra)</h3>
+        <h3 style="margin:0 0 8px 0; color:#1E293B; font-size:15px; display:flex; align-items:center; gap:6px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></svg>
+            <span>Calculateur d'Itinéraire (Dijkstra)</span>
+        </h3>
         
         <p style="margin:0 0 10px 0; color:#64748B; font-size:11px;">
             Sélectionnez deux stations dans les listes ci-dessous ou directement en cliquant sur la carte.
@@ -463,23 +520,44 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         <select id="target-station" style="width:100%; padding:7px; margin:4px 0 12px 0; border-radius:6px; border:1px solid #CBD5E0;"></select>
         
         <button onclick="calculateRoute()" style="
-            width:100%; background:#2563EB; color:white; border:none; padding:9px; border-radius:6px; font-weight:bold; cursor:pointer; margin-bottom:8px;
-        ">Calculer le trajet le plus court</button>
+            width:100%; background:#2563EB; color:white; border:none; padding:9px; border-radius:6px; font-weight:bold; cursor:pointer; margin-bottom:8px; display:flex; align-items:center; justify-content:center; gap:6px;
+        ">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <span>Calculer le trajet le plus court</span>
+        </button>
         
         <button id="toggle-delaunay-btn" onclick="toggleDelaunayLayer()" style="
-            width:100%; background:#6B21A8; color:white; border:none; padding:8px; border-radius:6px; font-weight:600; cursor:pointer;
-        ">Afficher / Masquer la Triangulation Delaunay</button>
+            width:100%; background:#6B21A8; color:white; border:none; padding:8px; border-radius:6px; font-weight:600; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; transition: background 0.2s;
+        ">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 2 22h20L12 2z"/></svg>
+            <span>Afficher / Masquer Triangulation Delaunay</span>
+        </button>
 
         <div id="route-results" style="margin-top:12px; display:none; padding:12px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
-            <div style="font-weight:bold; color:#1D4ED8; margin-bottom:6px;">Résultats du trajet :</div>
-            <div>Distance : <b id="route-dist" style="color:#0F172A;">-</b></div>
-            <div>Temps estimé (15 km/h) : <b id="route-time" style="color:#0F172A;">-</b></div>
-            <div>Stations traversées : <b id="route-hops" style="color:#0F172A;">-</b></div>
+            <div style="font-weight:bold; color:#1D4ED8; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <span>Résultats du trajet :</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.4 2.4 0 0 1 0-3.4l2.6-2.6a2.4 2.4 0 0 1 3.4 0l12.6 12.6z"/></svg>
+                <span>Distance : <b id="route-dist" style="color:#0F172A;">-</b></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px; margin-bottom:3px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>Temps estimé (15 km/h) : <b id="route-time" style="color:#0F172A;">-</b></span>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span>Stations traversées : <b id="route-hops" style="color:#0F172A;">-</b></span>
+            </div>
         </div>
 
         <hr style="margin: 16px 0; border: 0; border-top: 1px solid #E2E8F0;">
 
-        <h3 style="margin:0 0 12px 0; color:#1E293B; font-size:14px;">Statistiques du réseau</h3>
+        <h3 style="margin:0 0 12px 0; color:#1E293B; font-size:14px; display:flex; align-items:center; gap:6px;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1E293B" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            <span>Statistiques du réseau</span>
+        </h3>
 
         <div style="margin-bottom: 16px;">
             <div style="font-size:11px; font-weight:bold; color:#64748B; margin-bottom:6px;">Top stations par capacité</div>
@@ -556,17 +634,25 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         const mapObj = Object.values(window).find(v => v && v.addLayer && v.eachLayer);
         if (!mapObj) return;
 
-        mapObj.eachLayer(layer => {{
-            if (layer.options && layer.options.name && layer.options.name.includes("Delaunay")) {{
-                delaunayLayerRef = layer;
-            }}
-        }});
+        if (!delaunayLayerRef) {{
+            mapObj.eachLayer(layer => {{
+                if (layer.options && (
+                    (layer.options.name && layer.options.name.toLowerCase().includes("delaunay")) ||
+                    (layer.options.overlayName && layer.options.overlayName.toLowerCase().includes("delaunay"))
+                )) {{
+                    delaunayLayerRef = layer;
+                }}
+            }});
+        }}
 
         if (delaunayLayerRef) {{
+            const btn = document.getElementById("toggle-delaunay-btn");
             if (mapObj.hasLayer(delaunayLayerRef)) {{
                 mapObj.removeLayer(delaunayLayerRef);
+                btn.style.background = "#64748B";
             }} else {{
                 mapObj.addLayer(delaunayLayerRef);
+                btn.style.background = "#6B21A8";
             }}
         }}
     }}
