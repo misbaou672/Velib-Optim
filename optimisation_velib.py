@@ -5,13 +5,15 @@ Auteur : Misbaou DIALLO (BUT 3 Informatique)
 ==============================================================================
 
 Fonctionnalités avancées :
-  1. Triangulation de Delaunay (SciPy) : Visualisation en Maillage Néon Cyan avec Bouton On/Off.
+  1. Triangulation de Delaunay (SciPy) avec Surfaces Colorées selon la Densité/Superficie :
+     - Les triangles les plus PETITS (haute densité urbaine) ont une couleur sombre/intense.
+     - Les triangles les plus GRANDS ont une teinte plus claire et transparente.
   2. Algorithmes MST : Kruskal (Union-Find) & Prim (Min-Heap) pour le réseau minimal.
   3. Recherche d'Itinéraire Optimal (Dijkstra) :
      - Par Sélection dans le Menu Déroulant
      - PAR CLIC DIRECT SUR DEUX STATIONS SUR LA CARTE INTERACTIVE
   4. Graphiques & Analytics Visuels (Matplotlib + Chart.js).
-  5. Layout UX Pro : Layer Control en Top-Left pour zéro chevauchement avec le panneau Droit !
+  5. Application Web Interactive HTML (Folium + Leaflet + Toggle Delaunay + Calculateur + Chart.js).
 """
 
 import argparse
@@ -51,6 +53,56 @@ def haversine_distance(lat1, lon1, lat2, lon2):
          math.sin(dlon / 2) ** 2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     return R * c
+
+
+def calculer_surface_triangle(p1, p2, p3):
+    """Calcule l'aire approximative en km² d'un triangle à partir de 3 points GPS (lon, lat)."""
+    x1, y1 = p1
+    x2, y2 = p2
+    x3, y3 = p3
+    # Surface en deg²
+    deg_area = 0.5 * abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))
+    # Conversion approximative en km² pour la latitude de Paris (~48.85°)
+    # 1° lat ≈ 111 km, 1° lon ≈ 73 km à Paris => 1 deg² ≈ 8103 km²
+    km2_area = deg_area * 8103.0
+    return km2_area
+
+
+def obtenir_couleur_delaunay(area, min_area, max_area):
+    """
+    Retourne une couleur et une opacité basées sur la surface du triangle (échelle logarithmique) :
+    - Plus PETITE surface (très dense) -> Couleur très SOMBRE & OPAQUE (#0B0F19 / Indigo nuit)
+    - Plus GRANDE surface (peu dense)  -> Couleur CLAIRE & TRANSLUCIDE (#E0E7FF / Lavender translucide)
+    """
+    safe_area = max(area, 1e-7)
+    safe_min = max(min_area, 1e-7)
+    safe_max = max(max_area, 1e-7)
+    
+    log_area = math.log10(safe_area)
+    log_min = math.log10(safe_min)
+    log_max = math.log10(safe_max)
+    
+    if log_max == log_min:
+        norm = 0.5
+    else:
+        norm = (log_area - log_min) / (log_max - log_min)
+        norm = max(0.0, min(1.0, norm))
+    
+    # Échelle continue de sombre (petite surface) à clair (grande surface)
+    if norm < 0.15:
+        return "#0F172A", 0.80  # Noir Indigo Très Sombre (Densité maximale - Paris Centre)
+    elif norm < 0.30:
+        return "#1E1B4B", 0.70  # Indigo Nuit Sombre
+    elif norm < 0.45:
+        return "#312E81", 0.60  # Indigo Foncé
+    elif norm < 0.60:
+        return "#4338CA", 0.50  # Violet Indigo Moyen
+    elif norm < 0.75:
+        return "#6D28D9", 0.40  # Violet Clair
+    elif norm < 0.88:
+        return "#A855F7", 0.28  # Magenta / Violet Pâle
+    else:
+        return "#E0E7FF", 0.18  # Lavender Translucide Très Clair (Grande surface / Banlieue éloignée)
 
 
 class DisjointSet:
@@ -265,8 +317,8 @@ def generer_statistiques(df, edges, weight_mst):
     return rapport
 
 
-def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, default_target_idx=15):
-    """Génère la carte HTML avec disposition UX sans chevauchement (LayerControl à gauche, Panneau à droite)."""
+def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=0, default_target_idx=15):
+    """Génère la carte HTML avec Triangles Delaunay COLORÉS PAR SURFACE + Clic 2 stations + Chart.js."""
     center_lat = df["latitude"].mean()
     center_lon = df["longitude"].mean()
     m = folium.Map(location=[center_lat, center_lon], zoom_start=11, tiles="OpenStreetMap")
@@ -274,7 +326,9 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
     marker_cluster = MarkerCluster(name="Stations Vélib Île-de-France").add_to(m)
 
     stations_js_data = []
+    coords_list = []
     for idx, row in df.iterrows():
+        coords_list.append((row["longitude"], row["latitude"]))
         stations_js_data.append({
             "idx": idx,
             "id": row["id"],
@@ -305,17 +359,41 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
             fill_opacity=0.8
         ).add_to(marker_cluster)
 
-    # Groupe 1 : Delaunay Violet Néon
-    delaunay_group = folium.FeatureGroup(name="🌐 Maillage Triangulation de Delaunay (4 536 arêtes)")
-    for u, v, weight in edges:
-        loc1 = [df.loc[u, "latitude"], df.loc[u, "longitude"]]
-        loc2 = [df.loc[v, "latitude"], df.loc[v, "longitude"]]
-        folium.PolyLine(
-            locations=[loc1, loc2],
-            weight=1.5,
-            color="#8B5CF6",
-            opacity=0.55,
-            tooltip=f"Delaunay: {weight*1000:.0f} m"
+    # 1. Calculer les surfaces de tous les triangles de Delaunay
+    triangle_areas = []
+    triangle_data = []
+    for simplex in tri.simplices:
+        p1 = coords_list[simplex[0]]
+        p2 = coords_list[simplex[1]]
+        p3 = coords_list[simplex[2]]
+        area = calculer_surface_triangle(p1, p2, p3)
+        triangle_areas.append(area)
+        triangle_data.append((simplex, area))
+
+    min_area = min(triangle_areas)
+    max_area = max(triangle_areas)
+
+    # Groupe 1 : Surface des Triangles Delaunay Colorés par Densité / Taille
+    delaunay_group = folium.FeatureGroup(name="🌐 Maillage Delaunay Coloré par Densité (Surface)")
+    for simplex, area in triangle_data:
+        p1 = [df.loc[simplex[0], "latitude"], df.loc[simplex[0], "longitude"]]
+        p2 = [df.loc[simplex[1], "latitude"], df.loc[simplex[1], "longitude"]]
+        p3 = [df.loc[simplex[2], "latitude"], df.loc[simplex[2], "longitude"]]
+
+        color, opacity = obtenir_couleur_delaunay(area, min_area, max_area)
+        if area < 1.0:
+            area_str = f"{area * 100:.1f} ha"
+        else:
+            area_str = f"{area:.2f} km²"
+
+        folium.Polygon(
+            locations=[p1, p2, p3],
+            color="#4C1D95",  # Contour violet très sombre
+            weight=1.0,
+            fill=True,
+            fill_color=color,
+            fill_opacity=opacity,
+            tooltip=f"Triangle Delaunay<br>📐 Surface : <b>{area_str}</b><br>🎨 Couleur : <i>{'Sombre (Superficie réduite / Denser)' if opacity > 0.5 else 'Claire (Grande superficie)'}</i>"
         ).add_to(delaunay_group)
 
     # Groupe 2 : MST Vert Émeraude
@@ -325,16 +403,15 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
         loc2 = [df.loc[v, "latitude"], df.loc[v, "longitude"]]
         folium.PolyLine(
             locations=[loc1, loc2],
-            weight=3.0,
+            weight=3.2,
             color="#10B981",
-            opacity=0.9,
+            opacity=0.95,
             tooltip=f"MST: {weight*1000:.0f} m"
         ).add_to(mst_group)
 
     delaunay_group.add_to(m)
     mst_group.add_to(m)
 
-    # REPOSITIONNEMENT : LayerControl à GAUCHE pour zéro chevauchement avec le panneau de droite !
     folium.LayerControl(position='topleft', collapsed=False).add_to(m)
     MiniMap(toggle_display=True, position='bottomleft').add_to(m)
 
@@ -356,7 +433,6 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
     dashboard_ui_html = f"""
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Style CSS d'ajustement pour décaler le contrôle des calques à gauche sous les zooms -->
     <style>
     .leaflet-top.leaflet-left {{
         top: 80px !important;
@@ -386,7 +462,7 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
         </div>
     </div>
 
-    <!-- Side Panel (À DROITE) -->
+    <!-- Side Panel -->
     <div id="route-panel" style="
         position: fixed; top: 80px; right: 15px; width: 350px; max-height: calc(100vh - 100px); overflow-y: auto; background: rgba(255, 255, 255, 0.95); border-radius: 14px; padding: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 9999; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; backdrop-filter: blur(10px); border: 1px solid #E2E8F0;
     ">
@@ -409,7 +485,7 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
         ">🔍 Calculer le chemin le plus court</button>
         
         <button id="toggle-delaunay-btn" onclick="toggleDelaunayLayer()" style="
-            width:100%; background:#8B5CF6; color:white; border:none; padding:9px; border-radius:6px; font-weight:bold; cursor:pointer; transition:0.2s;
+            width:100%; background:#7B1FA2; color:white; border:none; padding:9px; border-radius:6px; font-weight:bold; cursor:pointer; transition:0.2s;
         ">🌐 Basculer Triangulation Delaunay (On/Off)</button>
 
         <div id="route-results" style="margin-top:12px; display:none; padding:12px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
@@ -661,9 +737,9 @@ def main():
     # 4. Statistiques analytiques JSON
     generer_statistiques(df, edges, weight_kruskal)
 
-    # 5. Carte HTML interactive avec disposition sans chevauchement (LayerControl à gauche, Panneau à droite)
-    generer_carte_html_interactive(df, mst_kruskal, edges, args.depart or 0, args.arrivee or 15)
-    print(f"[✓] Carte interactive mise à jour (LayerControl à GAUCHE, Panneau à DROITE - Zéro chevauchement) : {OUTPUT_MAP}")
+    # 5. Carte HTML interactive avec Triangles Delaunay Colorés par Surface / Densité
+    generer_carte_html_interactive(df, tri, mst_kruskal, edges, args.depart or 0, args.arrivee or 15)
+    print(f"[✓] Carte interactive mise à jour (Triangles Delaunay Colorés par Surface/Densité) : {OUTPUT_MAP}")
     print("[✓] Processus terminé avec succès !")
 
 
