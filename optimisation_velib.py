@@ -6,7 +6,7 @@ Projet de théorie des graphes et d'optimisation :
 - Triangulation de Delaunay avec coloration selon la surface (densité spatiale)
 - Algorithmes d'Arbre Couvrant Minimum (Kruskal & Prim)
 - Recherche de plus court chemin (Dijkstra)
-- Visualisation interactive dynamique avec Folium, Leaflet et Chart.js
+- Cockpit Data / Tableau de bord analytique interactif (Folium, Leaflet, Chart.js)
 
 Auteur : Misbaou DIALLO (BUT 3 Informatique)
 """
@@ -252,12 +252,13 @@ def generer_graphiques_matplotlib(df, edges):
     plt.close()
 
 
-def generer_statistiques(df, edges, weight_mst):
+def generer_statistiques(df, edges, weight_mst, time_kruskal, time_prim):
     """Exporte les métriques du réseau au format JSON."""
     total_stations = len(df)
     total_capacite = int(df['capacite'].sum()) if 'capacite' in df else 0
     total_velos_dispo = int(df['numbikesavailable'].sum()) if 'numbikesavailable' in df else 0
     total_bornettes_libres = int(df['numdocksavailable'].sum()) if 'numdocksavailable' in df else 0
+    total_ebikes = int(df['ebike'].sum()) if 'ebike' in df else 0
 
     top_capacites = df.sort_values(by='capacite', ascending=False).head(10)[
         ['nom', 'commune', 'capacite', 'numbikesavailable']
@@ -271,11 +272,14 @@ def generer_statistiques(df, edges, weight_mst):
             "total_stations": total_stations,
             "total_communes": df['commune'].nunique(),
             "total_velos_dispo_temps_reel": total_velos_dispo,
+            "total_velos_electriques": total_ebikes,
             "total_bornettes_libres_temps_reel": total_bornettes_libres,
             "capacite_totale_velos": total_capacite,
             "distance_mst_totale_km": round(weight_mst, 2),
             "nombre_connexions_delaunay": len(edges),
-            "distance_inter_station_moyenne_km": round(sum(distances) / len(distances), 3)
+            "distance_inter_station_moyenne_km": round(sum(distances) / len(distances), 3),
+            "temps_kruskal_ms": round(time_kruskal, 2),
+            "temps_prim_ms": round(time_prim, 2)
         },
         "top_10_stations_capacite": top_capacites,
         "repartition_par_commune": par_commune
@@ -287,8 +291,8 @@ def generer_statistiques(df, edges, weight_mst):
     return rapport
 
 
-def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=0, default_target_idx=15):
-    """Génère la carte web interactive Folium / Leaflet avec métriques dynamiques temps réel."""
+def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, time_prim=50.2, default_start_idx=0, default_target_idx=15):
+    """Génère le Cockpit Data spatial Vélib Île-de-France complet."""
     center_lat = df["latitude"].mean()
     center_lon = df["longitude"].mean()
     m = folium.Map(
@@ -298,7 +302,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         prefer_canvas=True
     )
 
-    # Calcul dynamique des métriques du KPI banner
+    # Calcul dynamique des métriques Cockpit
     total_stations = len(df)
     total_capacite = int(df['capacite'].sum()) if 'capacite' in df else 0
     total_velos_dispo = int(df['numbikesavailable'].sum()) if 'numbikesavailable' in df else 0
@@ -334,7 +338,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         })
 
         popup_html = f"""
-        <div style="font-family: system-ui, -apple-system, sans-serif; min-width:200px;">
+        <div style="font-family: system-ui, -apple-system, sans-serif; min-width:210px;">
             <div style="font-weight:700; color:#1E40AF; font-size:14px; margin-bottom:4px;">{row['nom']}</div>
             <div style="color:#475569; font-size:12px; display:flex; align-items:center; gap:5px; margin-bottom:6px;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -453,18 +457,18 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         left: 15px !important;
     }}
     
-    /* Animations & Glassmorphism Design System */
+    /* Animations & Glassmorphism Cockpit Design */
     @keyframes floatIn {{
         from {{ opacity: 0; transform: translateY(-12px); }}
         to {{ opacity: 1; transform: translateY(0); }}
     }}
     @keyframes pulseGlow {{
-        0%, 100% {{ box-shadow: 0 8px 32px rgba(15, 23, 42, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.1); }}
+        0%, 100% {{ box-shadow: 0 8px 32px rgba(15, 23, 42, 0.4), inset 0 0 0 1px rgba(255, 255, 255, 0.1); }}
         50% {{ box-shadow: 0 12px 36px rgba(99, 102, 241, 0.25), inset 0 0 0 1px rgba(139, 92, 246, 0.3); }}
     }}
 
     .glass-panel {{
-        background: rgba(15, 23, 42, 0.85) !important;
+        background: rgba(15, 23, 42, 0.88) !important;
         backdrop-filter: blur(18px) saturate(180%) !important;
         -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
         border: 1px solid rgba(255, 255, 255, 0.12) !important;
@@ -473,7 +477,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     }}
 
     .kpi-card {{
-        background: rgba(15, 23, 42, 0.88);
+        background: rgba(15, 23, 42, 0.90);
         color: white;
         padding: 6px 14px;
         border-radius: 12px;
@@ -534,9 +538,6 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%) !important;
         box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35) !important;
     }}
-    .btn-purple:hover {{
-        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5) !important;
-    }}
 
     .custom-select {{
         width: 100%;
@@ -554,11 +555,40 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         border-color: #6366F1;
         box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
     }}
+
+    .tab-btn {{
+        background: transparent;
+        border: none;
+        color: #94A3B8;
+        padding: 6px 12px;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        transition: all 0.2s;
+    }}
+    .tab-btn.active {{
+        color: #38BDF8;
+        border-bottom-color: #38BDF8;
+    }}
     </style>
 
-    <!-- Top KPI Banner (Métriques Dynamiques Temps Réel) -->
+    <!-- Cockpit Live Search Bar (Top Left Panel) -->
+    <div id="cockpit-search-bar" class="glass-panel" style="
+        position: fixed; top: 14px; left: 15px; width: 260px; z-index: 9999; padding: 6px 12px; border-radius: 12px; display: flex; align-items: center; gap: 8px;
+    ">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input id="search-input" onkeyup="filterCockpitSearch(this.value)" placeholder="Chercher une station..." style="
+            background: transparent; border: none; outline: none; color: #F8FAFC; font-size: 12px; width: 100%; font-weight: 600;
+        " />
+        <div id="search-results" style="
+            position: absolute; top: 40px; left: 0; right: 0; background: rgba(15, 23, 42, 0.95); border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 10px; max-height: 200px; overflow-y: auto; display: none; backdrop-filter: blur(12px);
+        "></div>
+    </div>
+
+    <!-- Top KPI Banner (Métriques Dynamiques Cockpit Temps Réel) -->
     <div id="kpi-banner" style="
-        position: fixed; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 9999;
+        position: fixed; top: 14px; left: 52%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 9999;
     ">
         <div class="kpi-card">
             <div class="kpi-icon" style="color: #38BDF8; background: rgba(56, 189, 248, 0.15);">
@@ -603,18 +633,18 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
 
     <!-- Compact Route Calculator Panel (Top Right - Glassmorphism) -->
     <div id="route-panel" class="glass-panel" style="
-        position: fixed; top: 75px; right: 15px; width: 300px; border-radius: 16px; padding: 16px; z-index: 9999; font-size: 12px; animation: floatIn 0.6s ease-out forwards;
+        position: fixed; top: 75px; right: 15px; width: 310px; border-radius: 16px; padding: 16px; z-index: 9999; font-size: 12px; animation: floatIn 0.6s ease-out forwards;
     ">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <div style="font-weight:800; color:#F8FAFC; font-size:14px; display:flex; align-items:center; gap:8px;">
                 <div style="width:24px; height:24px; border-radius:6px; background:rgba(99, 102, 241, 0.2); display:flex; align-items:center; justify-content:center; color:#818CF8;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></svg>
                 </div>
-                <span>Itinéraire Dijkstra</span>
+                <span>Cockpit Itinéraire</span>
             </div>
             <button onclick="toggleStatsDrawer()" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#94A3B8; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; transition:all 0.2s;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
-                <span>Stats</span>
+                <span>Analytics</span>
             </button>
         </div>
         
@@ -626,7 +656,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         
         <button onclick="calculateRoute()" class="btn-gradient" style="width:100%; margin-top:4px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <span>Calculer trajet</span>
+            <span>Calculer trajet (Dijkstra)</span>
         </button>
 
         <div id="route-results" style="margin-top:12px; display:none; padding:12px; background:rgba(0,0,0,0.3); border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
@@ -638,25 +668,66 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
                 <span style="color:#94A3B8;">Temps (15km/h) :</span>
                 <b id="route-time" style="color:#34D399;">-</b>
             </div>
-            <div style="display:flex; justify-content:space-between;">
-                <span style="color:#94A3B8;">Stations :</span>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <span style="color:#94A3B8;">Stations traversées :</span>
                 <b id="route-hops" style="color:#F8FAFC;">-</b>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-top:1px dashed rgba(255,255,255,0.1); padding-top:4px;">
+                <span style="color:#94A3B8;">Écon. CO₂ (vs Auto) :</span>
+                <b id="route-co2" style="color:#FBBF24;">-</b>
             </div>
         </div>
 
-        <!-- Collapsible Stats Drawer inside panel -->
+        <!-- Collapsible Multi-Tab Cockpit Analytics Drawer inside panel -->
         <div id="stats-drawer" style="display:none; margin-top:14px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px;">
-            <div style="font-size:11px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Top Capacités</div>
-            <canvas id="chartTopCapacity" height="140"></canvas>
+            <div style="display:flex; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:10px;">
+                <button class="tab-btn active" onclick="switchCockpitTab('tab-charts', this)">Graphiques</button>
+                <button class="tab-btn" onclick="switchCockpitTab('tab-algos', this)">Performances</button>
+            </div>
 
-            <div style="font-size:11px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.5px; margin:12px 0 8px 0;">Répartition Communes</div>
-            <canvas id="chartCommunes" height="140"></canvas>
+            <div id="tab-charts">
+                <div style="font-size:11px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px;">Top Capacités</div>
+                <canvas id="chartTopCapacity" height="130"></canvas>
+
+                <div style="font-size:11px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.5px; margin:10px 0 6px 0;">Répartition Communes</div>
+                <canvas id="chartCommunes" height="130"></canvas>
+            </div>
+
+            <div id="tab-algos" style="display:none; font-size:11px;">
+                <div style="color:#94A3B8; font-weight:800; text-transform:uppercase; margin-bottom:6px;">Comparatif Algorithmes MST</div>
+                <div style="background:rgba(0,0,0,0.3); padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); margin-bottom:8px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span>Kruskal (Union-Find) :</span>
+                        <b style="color:#34D399;">{round(time_kruskal, 2)} ms</b>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span>Prim (Min-Heap) :</span>
+                        <b style="color:#FBBF24;">{round(time_prim, 2)} ms</b>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Distance MST Totale :</span>
+                        <b style="color:#38BDF8;">{weight_mst_sum} km</b>
+                    </div>
+                </div>
+
+                <div style="color:#94A3B8; font-weight:800; text-transform:uppercase; margin-bottom:6px;">Réduction Maillage Delaunay</div>
+                <div style="background:rgba(0,0,0,0.3); padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span>Graphe Complet V(V-1)/2 :</span>
+                        <b style="color:#F87171;">1 151 403 arêtes</b>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Graphe Delaunay :</span>
+                        <b style="color:#34D399;">{len(edges):,} arêtes</b>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Mini Bottom Banner Legend (Glossy Pill with Subtle Glow) -->
     <div id="bottom-legend-banner" class="glass-panel" style="
-        position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; padding: 8px 20px; border-radius: 9999px; z-index: 9999; font-size: 11px; animation: pulseGlow 4s infinite ease-in-out;
+        position: fixed; bottom: 22px; left: 52%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; padding: 8px 20px; border-radius: 9999px; z-index: 9999; font-size: 11px; animation: pulseGlow 4s infinite ease-in-out;
     ">
         <div style="display:flex; align-items:center; gap:6px; font-weight:800; color:#94A3B8; border-right:1px solid rgba(255,255,255,0.15); padding-right:12px; letter-spacing:0.5px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A855F7" stroke-width="2.2"><path d="M12 2 2 22h20L12 2z"/></svg>
@@ -698,6 +769,47 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
 
     function getLeafletMap() {{
         return Object.values(window).find(v => v && v.fitBounds && v.addLayer && v.removeLayer && v._layers);
+    }}
+
+    function filterCockpitSearch(query) {{
+        const box = document.getElementById("search-results");
+        if (!box) return;
+        if (!query || query.trim().length < 2) {{
+            box.style.display = "none";
+            return;
+        }}
+        const q = query.toLowerCase();
+        const matches = STATIONS.filter(s => s.nom.toLowerCase().includes(q) || s.commune.toLowerCase().includes(q)).slice(0, 6);
+        if (matches.length === 0) {{
+            box.style.display = "none";
+            return;
+        }}
+        box.innerHTML = "";
+        matches.forEach(m => {{
+            const div = document.createElement("div");
+            div.style.padding = "6px 10px";
+            div.style.cursor = "pointer";
+            div.style.fontSize = "11px";
+            div.style.borderBottom = "1px solid rgba(255,255,255,0.05)";
+            div.innerHTML = "<b style='color:#38BDF8;'>" + m.nom + "</b> <span style='color:#94A3B8;'>(" + m.commune + ")</span>";
+            div.onclick = function() {{
+                box.style.display = "none";
+                document.getElementById("search-input").value = m.nom;
+                const mapObj = getLeafletMap();
+                if (mapObj) mapObj.flyTo([m.lat, m.lon], 16);
+            }};
+            box.appendChild(div);
+        }});
+        box.style.display = "block";
+    }}
+
+    function switchCockpitTab(tabId, btn) {{
+        document.getElementById("tab-charts").style.display = "none";
+        document.getElementById("tab-algos").style.display = "none";
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.getElementById(tabId).style.display = "block";
+        btn.classList.add("active");
+        if (tabId === 'tab-charts') setTimeout(initCharts, 50);
     }}
 
     function initVelibApp() {{
@@ -896,6 +1008,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         
         const totalDistKm = dist[uTarget];
         const minutes = Math.max(1, Math.round((totalDistKm / 15) * 60));
+        const co2Saved = Math.round(totalDistKm * 120);
         
         const resultsBox = document.getElementById("route-results");
         if (resultsBox) resultsBox.style.display = "block";
@@ -903,6 +1016,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         document.getElementById("route-dist").textContent = totalDistKm.toFixed(2) + " km";
         document.getElementById("route-time").textContent = minutes + " min";
         document.getElementById("route-hops").textContent = path.length + " stations";
+        document.getElementById("route-co2").textContent = co2Saved + " g CO₂";
         
         const mapObj = getLeafletMap();
         if (mapObj) {{
@@ -975,11 +1089,11 @@ def main():
     generer_graphiques_matplotlib(df, edges)
 
     # 4. Statistiques JSON
-    generer_statistiques(df, edges, weight_kruskal)
+    generer_statistiques(df, edges, weight_kruskal, time_kruskal, time_prim)
 
-    # 5. Carte HTML Folium
-    generer_carte_html_interactive(df, tri, mst_kruskal, edges, args.depart or 0, args.arrivee or 15)
-    print(f"\nCarte interactive générée avec succès : {OUTPUT_MAP}")
+    # 5. Carte HTML Folium Cockpit
+    generer_carte_html_interactive(df, tri, mst_kruskal, edges, time_kruskal, time_prim, args.depart or 0, args.arrivee or 15)
+    print(f"\nCockpit interactif généré avec succès : {OUTPUT_MAP}")
 
 
 if __name__ == "__main__":
