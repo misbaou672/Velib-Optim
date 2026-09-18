@@ -1,27 +1,30 @@
-# Plan d'Améliorations & Roadmap - Optimisation Réseau Vélib Île-de-France
+# Roadmap & Plan d'Améliorations - Cockpit Data Vélib Île-de-France
 
-**Projet** : Optimisation et Analyse Spatiale du Réseau Vélib en Île-de-France (1 518 stations)  
-**Auteur** : Misbaou DIALLO (BUT 3 Informatique)  
-**Date** : Septembre 2026  
+![Roadmap](https://img.shields.io/badge/Roadmap-2026-6366F1?style=for-the-badge&logo=target&logoColor=white)
+![Projet](https://img.shields.io/badge/Projet-BUT_Informatique-38BDF8?style=for-the-badge&logo=education&logoColor=white)
+![Évolution](https://img.shields.io/badge/Temps_Libre-Amélioration_Continue-10B981?style=for-the-badge)
 
 ---
 
-## Fonctionnalités Futures à Ajouter
+> [!NOTE]
+> **Origine du document** : Ce plan de développement regroupe les évolutions futures imaginées pour prolonger le projet universitaire initial de **BUT Informatique**, développé et perfectionné sur mon temps libre par **Misbaou DIALLO**.
 
-### 1. Prédictions & Machine Learning (Modélisation Temps Réel)
-- **Prédiction de la disponibilité à H+1 / H+2** : Intégration d'un modèle de régression ou XGBoost basé sur les données historiques pour anticiper les stations vides ou saturées.
-- **Détection des anomalies de charge** : Alerte automatique lorsque le taux de remplissage d'une station dépasse 95% ou descend sous 5%.
+---
 
-### 2. Améliorations Cartographiques & Spatiales
-- **Isochrones de déplacement (10 min, 20 min, 30 min)** : Génération de polygones montrant les zones accessibles en vélo autour d'une station choisie.
-- **Routage réaliste sur réseau routier (OpenStreetMap / OSRM)** : Remplacer les lignes droites inter-stations par les véritables pistes cyclables d'Île-de-France (calcul des dénivelés et des voies sécurisées).
-- **Filtre dynamique par type de vélo** : Possibilité de filtrer la carte uniquement sur les stations ayant des vélos électriques disponibles (`ebike > 0`).
+## Axes d'Évolution du Cockpit Data
 
-### 3. Tableau de Bord Analytics Avancé
-- **Historique des tendances par commune** : Graphiques d'évolution horaire du taux d'utilisation des stations par arrondissement et département (75, 92, 93, 94).
-- **Simulateur de rééquilibrage de flotte** : Outil interactif permettant aux régulateurs Vélib de calculer le nombre optimal de vélos à déplacer en camion entre stations déficitaires et exédentaires.
+### 1. Machine Learning & Modélisation Prédictive
+- **Prédiction de disponibilité (H+1 / H+2)** : Déploiement d'un modèle XGBoost entraîné sur l'historique des requêtes API pour prédire les pénuries de vélos ou le risque de saturation des bornettes.
+- **Détection automatique d'anomalies** : Système de détection précoce des stations hors service ou victimes de vagues de vandalisme.
 
-### 4. Optimisations Techniques & Architecture
-- **WebSockets / SSE (Server-Sent Events)** : Mise à jour en temps réel des marqueurs de la carte sans rechargement de la page.
-- **Export PDF / Rapport automatique** : Bouton d'exportation d'un rapport synthétique PDF contenant les graphiques et métriques pour la régie des transports.
-- **Mode Offline PWA (Progressive Web App)** : Mise en cache locale des tuiles OpenStreetMap et des données pour une consultation sans connexion internet.
+### 2. Routage Avancé & Analyse Spatiale ISO
+- **Isochrones de Déplacement Vélo** : Cartographie des polygones d'accessibilité à 5, 10 et 15 minutes autour de n'importe quelle station.
+- **Graphe Routier Cyclable (OSRM / OpenStreetMap)** : Intégration du réseau routier réel avec prise en compte du dénivelé géographique de la région Île-de-France.
+
+### 3. Cockpit Exécutif de Régulation de Flotte
+- **Simulateur de Rééquilibrage par Camion** : Calcul d'itinéraire optimal pour les camions de régulation Vélib afin de transférer les vélos des stations exédentaires vers les stations déficitaires.
+- **Tableau de Bord Départemental** : Analyse comparative entre Paris intra-muros (75) et la Petite Couronne (92, 93, 94).
+
+---
+
+**Auteur** : **Misbaou DIALLO** *(BUT 3 Informatique)*
