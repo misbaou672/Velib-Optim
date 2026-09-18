@@ -1,0 +1,82 @@
+{
+  "metriques_generales": {
+    "total_stations": 1518,
+    "total_communes": 69,
+    "capacite_totale_velos": 49060,
+    "capacite_moyenne_station": 32.32,
+    "distance_mst_totale_km": 502.09,
+    "nombre_connexions_delaunay": 4536,
+    "distance_inter_station_moyenne_km": 0.563,
+    "distance_min_km": 0.019,
+    "distance_max_km": 12.511
+  },
+  "top_10_stations_capacite": [
+    {
+      "nom": "Station Tour de France",
+      "commune": "Paris",
+      "capacite": 204
+    },
+    {
+      "nom": "Hippodrome de Paris Vincennes",
+      "commune": "Paris",
+      "capacite": 100
+    },
+    {
+      "nom": "Hôpital Européen Georges Pompidou",
+      "commune": "Paris",
+      "capacite": 78
+    },
+    {
+      "nom": "Jean Macé - Faidherbe",
+      "commune": "Paris",
+      "capacite": 78
+    },
+    {
+      "nom": "Pau Casals - Neuve Tolbiac",
+      "commune": "Paris",
+      "capacite": 78
+    },
+    {
+      "nom": "Assemblée Nationale",
+      "commune": "Paris",
+      "capacite": 76
+    },
+    {
+      "nom": "Gare d'Austerlitz - Pont Charles de Gaulle",
+      "commune": "Paris",
+      "capacite": 75
+    },
+    {
+      "nom": "Emeriau - Beaugrenelle",
+      "commune": "Paris",
+      "capacite": 74
+    },
+    {
+      "nom": "Alexandre Dumas - Voltaire",
+      "commune": "Paris",
+      "capacite": 74
+    },
+    {
+      "nom": "M.- A. Lagroua Weill-Hallé -  F. Dolto",
+      "commune": "Paris",
+      "capacite": 74
+    }
+  ],
+  "repartition_par_commune": {
+    "Paris": 994,
+    "Boulogne-Billancourt": 30,
+    "Montreuil": 23,
+    "Issy-les-Moulineaux": 22,
+    "Pantin": 21,
+    "Saint-Denis": 19,
+    "Ivry-sur-Seine": 18,
+    "Vitry-sur-Seine": 17,
+    "Créteil": 17,
+    "Aubervilliers": 13,
+    "Montrouge": 13,
+    "Neuilly-sur-Seine": 13,
+    "Asnières-sur-Seine": 13,
+    "Clichy": 13,
+    "Fontenay-sous-Bois": 12
+  }
+}
