@@ -807,7 +807,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         if (clickSelectionStep === 0 || clickSelectionStep === 2) {{
             selectStart.value = stationIdx;
             clickSelectionStep = 1;
-            alert("Départ sélectionné : " + STATIONS[stationIdx].nom + "\n\nCliquez sur une 2ème station pour l'arrivée ou cliquez sur 'Calculer trajet'.");
+            alert("Départ sélectionné : " + STATIONS[stationIdx].nom + "\\n\\nCliquez sur une 2ème station pour l'arrivée ou cliquez sur 'Calculer trajet'.");
         }} else if (clickSelectionStep === 1) {{
             selectTarget.value = stationIdx;
             clickSelectionStep = 2;
