@@ -429,7 +429,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     with open(OUTPUT_MAP, "r", encoding="utf-8") as f:
         html_content = f.read()
 
-    delaunay_var_name = delaunay_group.get_name()
+    delaunay_var_name = str(delaunay_group.get_name())
     edges_js = [{"u": int(u), "v": int(v), "w": round(float(w), 4)} for u, v, w in edges]
 
     top10_df = df.sort_values(by='capacite', ascending=False).head(8)
@@ -689,12 +689,16 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     <script>
     const STATIONS = {json.dumps(stations_js_data)};
     const EDGES = {json.dumps(edges_js)};
+    const DELAUNAY_VAR_NAME = "{delaunay_var_name}";
+
     let activeRouteLayer = null;
     let clickSelectionStep = 0;
-    let delaunayLayerRef = {delaunay_var_name};
-
     let chartTopCapacityInst = null;
     let chartCommunesInst = null;
+
+    function getLeafletMap() {{
+        return Object.values(window).find(v => v && v.fitBounds && v.addLayer && v.removeLayer && v._layers);
+    }}
 
     function initVelibApp() {{
         const selectStart = document.getElementById("start-station");
@@ -787,6 +791,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
 
     function toggleStatsDrawer() {{
         const drawer = document.getElementById("stats-drawer");
+        if (!drawer) return;
         if (drawer.style.display === "none" || !drawer.style.display) {{
             drawer.style.display = "block";
             setTimeout(initCharts, 50);
@@ -796,21 +801,22 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     }}
 
     function toggleDelaunayLayer() {{
-        const mapObj = Object.values(window).find(v => v && v.addLayer && v.removeLayer && v.hasLayer);
-        if (!mapObj || !delaunayLayerRef) return;
-
+        const mapObj = getLeafletMap();
         const btn = document.getElementById("toggle-delaunay-btn");
-        if (mapObj.hasLayer(delaunayLayerRef)) {{
-            mapObj.removeLayer(delaunayLayerRef);
+        const delaunayLayer = window[DELAUNAY_VAR_NAME];
+
+        if (!mapObj || !delaunayLayer) {{
+            console.warn("Delaunay layer non prêt");
+            return;
+        }}
+
+        if (mapObj.hasLayer(delaunayLayer)) {{
+            mapObj.removeLayer(delaunayLayer);
             if (btn) btn.style.opacity = "0.4";
         }} else {{
-            mapObj.addLayer(delaunayLayerRef);
+            mapObj.addLayer(delaunayLayer);
             if (btn) btn.style.opacity = "1.0";
         }}
-    }}
-
-    function getLeafletMap() {{
-        return Object.values(window).find(v => v && v.fitBounds && v.addLayer && v.removeLayer);
     }}
 
     function selectStationByClick(stationIdx) {{
@@ -916,7 +922,8 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     </script>
     """
 
-    html_content = html_content.replace("</body>", f"{dashboard_ui_html}</body>")
+    # Placer l'UI personnalisée tout à la fin pour s'assurer que Folium et Leaflet ont totalement initialisé leurs variables
+    html_content = html_content + f"\n{dashboard_ui_html}\n"
     with open(OUTPUT_MAP, "w", encoding="utf-8") as f:
         f.write(html_content)
 
