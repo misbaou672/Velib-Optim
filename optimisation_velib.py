@@ -6,7 +6,7 @@ Projet de théorie des graphes et d'optimisation :
 - Triangulation de Delaunay avec coloration selon la surface (densité spatiale)
 - Algorithmes d'Arbre Couvrant Minimum (Kruskal & Prim)
 - Recherche de plus court chemin (Dijkstra)
-- Cockpit Data / Tableau de bord analytique interactif (Folium, Leaflet, Chart.js)
+- Cockpit Data & Analytics Spatiales complet (HeatMap, Filtrage Live, Comparateur, Chart.js)
 
 Auteur : Misbaou DIALLO (BUT 3 Informatique)
 """
@@ -26,7 +26,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import folium
-from folium.plugins import MiniMap, MarkerCluster
+from folium.plugins import MiniMap, MarkerCluster, HeatMap
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -311,6 +311,12 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     total_communes = df['commune'].nunique()
     weight_mst_sum = round(sum(w for _, _, w in mst_edges), 1)
 
+    # Add Live Availability Heatmap Layer
+    heat_data = [[row['latitude'], row['longitude'], max(1, int(row.get('numbikesavailable', 0)))] for _, row in df.iterrows()]
+    heatmap_group = folium.FeatureGroup(name="Carte de Chaleur (Disponibilité Vélos)", show=False)
+    HeatMap(heat_data, radius=12, blur=15, max_zoom=13).add_to(heatmap_group)
+    heatmap_group.add_to(m)
+
     marker_cluster = MarkerCluster(name=f"Stations Vélib ({total_stations:,})").add_to(m)
 
     stations_js_data = []
@@ -513,7 +519,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
         color: white !important;
         border: none !important;
-        padding: 9px 14px !important;
+        padding: 8px 12px !important;
         border-radius: 8px !important;
         font-weight: 700 !important;
         cursor: pointer !important;
@@ -521,7 +527,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         align-items: center !important;
         justify-content: center !important;
         gap: 6px !important;
-        font-size: 12px !important;
+        font-size: 11px !important;
         transition: all 0.25s ease !important;
         box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
     }}
@@ -530,13 +536,15 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5) !important;
         filter: brightness(1.1) !important;
     }}
-    .btn-gradient:active {{
-        transform: translateY(0) !important;
-    }}
 
     .btn-purple {{
         background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%) !important;
         box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35) !important;
+    }}
+
+    .btn-emerald {{
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%) !important;
+        box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
     }}
 
     .custom-select {{
@@ -575,7 +583,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
 
     <!-- Cockpit Live Search Bar (Top Left Panel) -->
     <div id="cockpit-search-bar" class="glass-panel" style="
-        position: fixed; top: 14px; left: 15px; width: 260px; z-index: 9999; padding: 6px 12px; border-radius: 12px; display: flex; align-items: center; gap: 8px;
+        position: fixed; top: 14px; left: 15px; width: 270px; z-index: 9999; padding: 6px 12px; border-radius: 12px; display: flex; align-items: center; gap: 8px;
     ">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input id="search-input" onkeyup="filterCockpitSearch(this.value)" placeholder="Chercher une station..." style="
@@ -588,7 +596,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
 
     <!-- Top KPI Banner (Métriques Dynamiques Cockpit Temps Réel) -->
     <div id="kpi-banner" style="
-        position: fixed; top: 14px; left: 52%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 9999;
+        position: fixed; top: 14px; left: 54%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 9999;
     ">
         <div class="kpi-card">
             <div class="kpi-icon" style="color: #38BDF8; background: rgba(56, 189, 248, 0.15);">
@@ -621,12 +629,12 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             </div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-icon" style="color: #F472B6; background: rgba(244, 114, 182, 0.15);">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+            <div class="kpi-icon" style="color: #A855F7; background: rgba(168, 85, 247, 0.15);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             </div>
             <div>
-                <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Communes</div>
-                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{total_communes}</div>
+                <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Vélos Élec.</div>
+                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{total_ebikes:,}</div>
             </div>
         </div>
     </div>
@@ -649,10 +657,10 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         </div>
         
         <label style="font-weight:700; color:#94A3B8; font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">Départ</label>
-        <select id="start-station" class="custom-select"></select>
+        <select id="start-station" class="custom-select" onchange="updateStationComparison()"></select>
         
         <label style="font-weight:700; color:#94A3B8; font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">Arrivée</label>
-        <select id="target-station" class="custom-select"></select>
+        <select id="target-station" class="custom-select" onchange="updateStationComparison()"></select>
         
         <button onclick="calculateRoute()" class="btn-gradient" style="width:100%; margin-top:4px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -675,6 +683,26 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             <div style="display:flex; justify-content:space-between; border-top:1px dashed rgba(255,255,255,0.1); padding-top:4px;">
                 <span style="color:#94A3B8;">Écon. CO₂ (vs Auto) :</span>
                 <b id="route-co2" style="color:#FBBF24;">-</b>
+            </div>
+        </div>
+
+        <!-- Floating Comparison Card Side-by-Side -->
+        <div id="station-comparison-card" style="margin-top:12px; padding:10px; background:rgba(255,255,255,0.04); border-radius:10px; border:1px solid rgba(255,255,255,0.08); font-size:11px;">
+            <div style="color:#38BDF8; font-weight:800; text-transform:uppercase; font-size:10px; margin-bottom:6px; display:flex; justify-content:space-between;">
+                <span>Comparateur Départ / Arrivée</span>
+                <span style="color:#94A3B8;">Direct</span>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                <div id="comp-start-box" style="background:rgba(0,0,0,0.25); padding:6px; border-radius:6px;">
+                    <div id="comp-start-name" style="font-weight:700; color:#F8FAFC; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Départ</div>
+                    <div style="color:#34D399; font-weight:800; margin-top:2px;">🚲 <span id="comp-start-bikes">-</span> dispo</div>
+                    <div style="color:#94A3B8; font-size:9px;">⚡ <span id="comp-start-ebike">-</span> elec</div>
+                </div>
+                <div id="comp-target-box" style="background:rgba(0,0,0,0.25); padding:6px; border-radius:6px;">
+                    <div id="comp-target-name" style="font-weight:700; color:#F8FAFC; font-size:10px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Arrivée</div>
+                    <div style="color:#38BDF8; font-weight:800; margin-top:2px;">🔌 <span id="comp-target-docks">-</span> docks</div>
+                    <div style="color:#94A3B8; font-size:9px;">⚡ <span id="comp-target-ebike">-</span> elec</div>
+                </div>
             </div>
         </div>
 
@@ -812,6 +840,29 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         if (tabId === 'tab-charts') setTimeout(initCharts, 50);
     }}
 
+    function updateStationComparison() {{
+        const selectStart = document.getElementById("start-station");
+        const selectTarget = document.getElementById("target-station");
+        if (!selectStart || !selectTarget) return;
+
+        const uStart = parseInt(selectStart.value);
+        const uTarget = parseInt(selectTarget.value);
+
+        if (!isNaN(uStart) && STATIONS[uStart]) {{
+            const s = STATIONS[uStart];
+            document.getElementById("comp-start-name").textContent = s.nom;
+            document.getElementById("comp-start-bikes").textContent = s.bikes;
+            document.getElementById("comp-start-ebike").textContent = s.ebike;
+        }}
+
+        if (!isNaN(uTarget) && STATIONS[uTarget]) {{
+            const t = STATIONS[uTarget];
+            document.getElementById("comp-target-name").textContent = t.nom;
+            document.getElementById("comp-target-docks").textContent = t.docks;
+            document.getElementById("comp-target-ebike").textContent = t.ebike;
+        }}
+    }}
+
     function initVelibApp() {{
         const selectStart = document.getElementById("start-station");
         const selectTarget = document.getElementById("target-station");
@@ -834,6 +885,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         
         selectStart.selectedIndex = {default_start_idx};
         selectTarget.selectedIndex = {default_target_idx};
+        updateStationComparison();
     }}
 
     function initCharts() {{
@@ -939,10 +991,12 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         if (clickSelectionStep === 0 || clickSelectionStep === 2) {{
             selectStart.value = stationIdx;
             clickSelectionStep = 1;
+            updateStationComparison();
             alert("Départ sélectionné : " + STATIONS[stationIdx].nom + "\\n\\nCliquez sur une 2ème station pour l'arrivée ou cliquez sur 'Calculer trajet'.");
         }} else if (clickSelectionStep === 1) {{
             selectTarget.value = stationIdx;
             clickSelectionStep = 2;
+            updateStationComparison();
             calculateRoute();
         }}
     }}
@@ -964,6 +1018,8 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             alert("Veuillez choisir deux stations différentes.");
             return;
         }}
+
+        updateStationComparison();
         
         const n = STATIONS.length;
         const adj = Array.from({{ length: n }}, () => []);
