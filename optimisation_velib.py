@@ -755,14 +755,19 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         }}
     }}
 
+    function getLeafletMap() {{
+        return Object.values(window).find(v => v && v.fitBounds && v.addLayer && v.removeLayer);
+    }}
+
     function selectStationByClick(stationIdx) {{
         const selectStart = document.getElementById("start-station");
         const selectTarget = document.getElementById("target-station");
+        if (!selectStart || !selectTarget) return;
 
         if (clickSelectionStep === 0 || clickSelectionStep === 2) {{
             selectStart.value = stationIdx;
             clickSelectionStep = 1;
-            console.log("Station de départ : " + STATIONS[stationIdx].nom);
+            alert("Départ sélectionné : " + STATIONS[stationIdx].nom + "\n\nCliquez sur une 2ème station pour l'arrivée ou cliquez sur 'Calculer trajet'.");
         }} else if (clickSelectionStep === 1) {{
             selectTarget.value = stationIdx;
             clickSelectionStep = 2;
@@ -771,9 +776,18 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     }}
 
     function calculateRoute() {{
-        const uStart = parseInt(document.getElementById("start-station").value);
-        const uTarget = parseInt(document.getElementById("target-station").value);
+        const selectStart = document.getElementById("start-station");
+        const selectTarget = document.getElementById("target-station");
+        if (!selectStart || !selectTarget) return;
+
+        const uStart = parseInt(selectStart.value);
+        const uTarget = parseInt(selectTarget.value);
         
+        if (isNaN(uStart) || isNaN(uTarget)) {{
+            alert("Veuillez sélectionner une station de départ et d'arrivée.");
+            return;
+        }}
+
         if (uStart === uTarget) {{
             alert("Veuillez choisir deux stations différentes.");
             return;
@@ -796,7 +810,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
             for (let j = 0; j < n; j++) {{
                 if (!visited[j] && (u === -1 || dist[j] < dist[u])) u = j;
             }}
-            if (dist[u] === Infinity || u === uTarget) break;
+            if (u === -1 || dist[u] === Infinity || u === uTarget) break;
             visited[u] = true;
             
             adj[u].forEach(edge => {{
@@ -807,6 +821,11 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
             }});
         }}
         
+        if (dist[uTarget] === Infinity) {{
+            alert("Aucun itinéraire trouvé entre ces deux stations.");
+            return;
+        }}
+
         const path = [];
         let curr = uTarget;
         while (curr !== null) {{
@@ -816,26 +835,28 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         path.reverse();
         
         const totalDistKm = dist[uTarget];
-        const minutes = Math.round((totalDistKm / 15) * 60);
+        const minutes = Math.max(1, Math.round((totalDistKm / 15) * 60));
         
-        document.getElementById("route-results").style.display = "block";
+        const resultsBox = document.getElementById("route-results");
+        if (resultsBox) resultsBox.style.display = "block";
+
         document.getElementById("route-dist").textContent = totalDistKm.toFixed(2) + " km";
         document.getElementById("route-time").textContent = minutes + " min";
         document.getElementById("route-hops").textContent = path.length + " stations";
         
-        const mapObj = Object.values(window).find(v => v && v.addLayer && v.on);
+        const mapObj = getLeafletMap();
         if (mapObj) {{
             if (activeRouteLayer) mapObj.removeLayer(activeRouteLayer);
             
             const routeCoords = path.map(idx => [STATIONS[idx].lat, STATIONS[idx].lon]);
             activeRouteLayer = L.polyline(routeCoords, {{
                 color: '#EF4444',
-                weight: 5,
-                opacity: 0.9,
-                dashArray: '6, 6'
+                weight: 6,
+                opacity: 0.95,
+                dashArray: '8, 8'
             }}).addTo(mapObj);
             
-            mapObj.fitBounds(activeRouteLayer.getBounds(), {{ padding: [50, 50] }});
+            mapObj.fitBounds(activeRouteLayer.getBounds(), {{ padding: [60, 60] }});
         }}
     }}
     </script>
