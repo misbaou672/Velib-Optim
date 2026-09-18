@@ -2,12 +2,17 @@
   "metriques_generales": {
     "total_stations": 1518,
     "total_communes": 69,
-    "total_velos_dispo_temps_reel": 18994,
-    "total_bornettes_libres_temps_reel": 28401,
+    "total_velos_dispo_temps_reel": 19143,
+    "total_velos_electriques": 7749,
+    "total_bornettes_libres_temps_reel": 28257,
     "capacite_totale_velos": 49060,
+    "stations_penurie_vides": 57,
+    "stations_saturees_pleines": 48,
     "distance_mst_totale_km": 502.09,
     "nombre_connexions_delaunay": 4536,
-    "distance_inter_station_moyenne_km": 0.563
+    "distance_inter_station_moyenne_km": 0.563,
+    "temps_kruskal_ms": 6.08,
+    "temps_prim_ms": 52.42
   },
   "top_10_stations_capacite": [
     {
@@ -23,34 +28,40 @@
       "numbikesavailable": 3
     },
     {
-      "nom": "Jean Macé - Faidherbe",
-      "commune": "Paris",
-      "capacite": 78,
-      "numbikesavailable": 49
-    },
-    {
       "nom": "Hôpital Européen Georges Pompidou",
       "commune": "Paris",
       "capacite": 78,
-      "numbikesavailable": 28
+      "numbikesavailable": 27
+    },
+    {
+      "nom": "Jean Macé - Faidherbe",
+      "commune": "Paris",
+      "capacite": 78,
+      "numbikesavailable": 50
     },
     {
       "nom": "Pau Casals - Neuve Tolbiac",
       "commune": "Paris",
       "capacite": 78,
-      "numbikesavailable": 0
+      "numbikesavailable": 1
     },
     {
       "nom": "Assemblée Nationale",
       "commune": "Paris",
       "capacite": 76,
-      "numbikesavailable": 25
+      "numbikesavailable": 21
     },
     {
       "nom": "Gare d'Austerlitz - Pont Charles de Gaulle",
       "commune": "Paris",
       "capacite": 75,
-      "numbikesavailable": 54
+      "numbikesavailable": 52
+    },
+    {
+      "nom": "Alexandre Dumas - Voltaire",
+      "commune": "Paris",
+      "capacite": 74,
+      "numbikesavailable": 18
     },
     {
       "nom": "M.- A. Lagroua Weill-Hallé -  F. Dolto",
@@ -62,13 +73,7 @@
       "nom": "Emeriau - Beaugrenelle",
       "commune": "Paris",
       "capacite": 74,
-      "numbikesavailable": 55
-    },
-    {
-      "nom": "Alexandre Dumas - Voltaire",
-      "commune": "Paris",
-      "capacite": 74,
-      "numbikesavailable": 15
+      "numbikesavailable": 54
     }
   ],
   "repartition_par_commune": {
@@ -81,11 +86,11 @@
     "Ivry-sur-Seine": 18,
     "Créteil": 17,
     "Vitry-sur-Seine": 17,
-    "Clichy": 13,
-    "Asnières-sur-Seine": 13,
-    "Aubervilliers": 13,
     "Montrouge": 13,
     "Neuilly-sur-Seine": 13,
+    "Aubervilliers": 13,
+    "Clichy": 13,
+    "Asnières-sur-Seine": 13,
     "Fontenay-sous-Bois": 12
   }
 }

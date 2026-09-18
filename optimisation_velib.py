@@ -476,9 +476,21 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     <style>
     * {{
         font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+        box-sizing: border-box;
+    }}
+    html, body {{
+        width: 100vw !important;
+        height: 100vh !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+    }}
+    .leaflet-container {{
+        width: 100% !important;
+        height: 100% !important;
     }}
     .leaflet-top.leaflet-left {{
-        top: 75px !important;
+        top: 70px !important;
         left: 15px !important;
     }}
     
@@ -594,15 +606,85 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         border-bottom: 2px solid transparent;
         transition: all 0.2s;
     }}
-    .tab-btn.active {{
-        color: #38BDF8;
-        border-bottom-color: #38BDF8;
+
+    /* Responsive & Zoom-Proof CSS */
+    #route-panel {{
+        max-height: calc(100vh - 105px) !important;
+        overflow-y: auto !important;
+        width: min(310px, 88vw) !important;
+    }}
+
+    #route-panel::-webkit-scrollbar {{
+        width: 5px;
+    }}
+    #route-panel::-webkit-scrollbar-thumb {{
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+    }}
+
+    #kpi-banner {{
+        max-width: calc(100vw - 640px) !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        top: 14px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+    }}
+
+    #bottom-legend-banner {{
+        max-width: min(650px, 90vw) !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: 10px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        bottom: 16px !important;
+    }}
+
+    @media (max-width: 1250px) {{
+        #kpi-banner {{
+            display: none !important;
+        }}
+    }}
+
+    @media (max-height: 750px) {{
+        #kpi-banner {{
+            display: none !important;
+        }}
+        #route-panel {{
+            top: 65px !important;
+            max-height: calc(100vh - 85px) !important;
+        }}
+        #bottom-legend-banner {{
+            bottom: 10px !important;
+            padding: 4px 12px !important;
+        }}
+    }}
+
+    @media (max-width: 650px) {{
+        #cockpit-search-bar {{
+            width: calc(100vw - 30px) !important;
+        }}
+        #route-panel {{
+            width: calc(100vw - 30px) !important;
+            right: 15px !important;
+            left: 15px !important;
+            top: 65px !important;
+            max-height: calc(100vh - 120px) !important;
+        }}
+        #bottom-legend-banner {{
+            width: calc(100vw - 30px) !important;
+            bottom: 10px !important;
+            font-size: 10px !important;
+            padding: 6px 12px !important;
+            border-radius: 14px !important;
+        }}
     }}
     </style>
 
     <!-- Cockpit Live Search Bar (Top Left Panel) -->
     <div id="cockpit-search-bar" class="glass-panel" style="
-        position: fixed; top: 14px; left: 15px; width: 270px; z-index: 9999; padding: 6px 12px; border-radius: 12px; display: flex; align-items: center; gap: 8px;
+        position: fixed; top: 14px; left: 15px; width: min(270px, 80vw); z-index: 9999; padding: 6px 12px; border-radius: 12px; display: flex; align-items: center; gap: 8px;
     ">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         <input id="search-input" onkeyup="filterCockpitSearch(this.value)" placeholder="Chercher une station..." style="
@@ -615,7 +697,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
 
     <!-- Top KPI Banner (Métriques Dynamiques Cockpit Temps Réel) -->
     <div id="kpi-banner" style="
-        position: fixed; top: 14px; left: 54%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 9999;
+        position: fixed; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 9999;
     ">
         <div class="kpi-card">
             <div class="kpi-icon" style="color: #38BDF8; background: rgba(56, 189, 248, 0.15);">
@@ -660,7 +742,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
 
     <!-- Compact Route Calculator Panel (Top Right - Glassmorphism) -->
     <div id="route-panel" class="glass-panel" style="
-        position: fixed; top: 75px; right: 15px; width: 310px; border-radius: 16px; padding: 16px; z-index: 9999; font-size: 12px; animation: floatIn 0.6s ease-out forwards;
+        position: fixed; top: 75px; right: 15px; width: min(310px, 90vw); border-radius: 16px; padding: 16px; z-index: 9999; font-size: 12px; animation: floatIn 0.6s ease-out forwards;
     ">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <div style="font-weight:800; color:#F8FAFC; font-size:14px; display:flex; align-items:center; gap:8px;">
@@ -798,7 +880,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
 
     <!-- Mini Bottom Banner Legend (Glossy Pill with Subtle Glow) -->
     <div id="bottom-legend-banner" class="glass-panel" style="
-        position: fixed; bottom: 22px; left: 52%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; padding: 8px 20px; border-radius: 9999px; z-index: 9999; font-size: 11px; animation: pulseGlow 4s infinite ease-in-out;
+        position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; padding: 8px 20px; border-radius: 9999px; z-index: 9999; font-size: 11px; animation: pulseGlow 4s infinite ease-in-out;
     ">
         <div style="display:flex; align-items:center; gap:6px; font-weight:800; color:#94A3B8; border-right:1px solid rgba(255,255,255,0.15); padding-right:12px; letter-spacing:0.5px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A855F7" stroke-width="2.2"><path d="M12 2 2 22h20L12 2z"/></svg>
