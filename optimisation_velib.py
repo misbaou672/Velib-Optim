@@ -679,6 +679,9 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     let clickSelectionStep = 0;
     let delaunayLayerRef = {delaunay_var_name};
 
+    let chartTopCapacityInst = null;
+    let chartCommunesInst = null;
+
     function initVelibApp() {{
         const selectStart = document.getElementById("start-station");
         const selectTarget = document.getElementById("target-station");
@@ -701,10 +704,18 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         
         selectStart.selectedIndex = {default_start_idx};
         selectTarget.selectedIndex = {default_target_idx};
+    }}
+
+    function initCharts() {{
+        if (chartTopCapacityInst && chartCommunesInst) {{
+            chartTopCapacityInst.resize();
+            chartCommunesInst.resize();
+            return;
+        }}
 
         const canvas1 = document.getElementById('chartTopCapacity');
-        if (canvas1) {{
-            new Chart(canvas1, {{
+        if (canvas1 && !chartTopCapacityInst) {{
+            chartTopCapacityInst = new Chart(canvas1, {{
                 type: 'bar',
                 data: {{
                     labels: {json.dumps(chart_top_labels)},
@@ -717,15 +728,21 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
                 }},
                 options: {{
                     responsive: true,
-                    plugins: {{ legend: {{ display: false }} }},
-                    scales: {{ y: {{ beginAtZero: true }} }}
+                    maintainAspectRatio: true,
+                    plugins: {{
+                        legend: {{ display: false }}
+                    }},
+                    scales: {{
+                        x: {{ ticks: {{ color: '#94A3B8', font: {{ size: 9 }} }} }},
+                        y: {{ ticks: {{ color: '#94A3B8', font: {{ size: 9 }} }}, beginAtZero: true }}
+                    }}
                 }}
             }});
         }}
 
         const canvas2 = document.getElementById('chartCommunes');
-        if (canvas2) {{
-            new Chart(canvas2, {{
+        if (canvas2 && !chartCommunesInst) {{
+            chartCommunesInst = new Chart(canvas2, {{
                 type: 'doughnut',
                 data: {{
                     labels: {json.dumps(chart_commune_labels)},
@@ -736,7 +753,13 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
                 }},
                 options: {{
                     responsive: true,
-                    plugins: {{ legend: {{ position: 'right', labels: {{ boxWidth: 10, font: {{ size: 10 }} }} }} }}
+                    maintainAspectRatio: true,
+                    plugins: {{
+                        legend: {{
+                            position: 'right',
+                            labels: {{ color: '#CBD5E1', boxWidth: 10, font: {{ size: 10 }} }}
+                        }}
+                    }}
                 }}
             }});
         }}
@@ -752,6 +775,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         const drawer = document.getElementById("stats-drawer");
         if (drawer.style.display === "none" || !drawer.style.display) {{
             drawer.style.display = "block";
+            setTimeout(initCharts, 50);
         }} else {{
             drawer.style.display = "none";
         }}
