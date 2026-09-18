@@ -7,7 +7,7 @@ L'objectif est d'analyser le réseau des 1 518 stations Vélib Métropole (Paris
 
 ---
 
-## 📌 Présentation et Objectifs
+## Présentation et Objectifs
 
 Le réseau Vélib d'Île-de-France comporte plus de 1 500 stations et 49 000 bornettes réparties sur 69 communes. Relier directement chaque station à toutes les autres créerait plus d'un million d'arêtes ($O(V^2)$), ce qui n'est ni réaliste ni efficace.
 
@@ -21,7 +21,7 @@ Ce projet applique plusieurs concepts d'algorithmique et de théorie des graphes
 
 ---
 
-## 📊 Aperçu du Dashboard & Graphiques
+## Aperçu du Dashboard & Graphiques
 
 Le script génère deux livrables principaux :
 - **`carte_velib_optimisee.html`** : Une carte interactive web (Leaflet / Folium) avec sélecteur d'itinéraire par clic, calque Delaunay activable/désactivable, et mini-dashboard Chart.js.
@@ -31,7 +31,7 @@ Le script génère deux livrables principaux :
 
 ---
 
-## ⚡ Performances des Algorithmes
+## Performances des Algorithmes
 
 Les tests ont été effectués sur le jeu de données complet de **1 518 stations** :
 
@@ -45,7 +45,7 @@ Les tests ont été effectués sur le jeu de données complet de **1 518 station
 
 ---
 
-## 💻 Installation et Exécution
+## Installation et Exécution
 
 ### Prérequis
 - Python 3.9+
@@ -53,8 +53,8 @@ Les tests ont été effectués sur le jeu de données complet de **1 518 station
 
 ```bash
 # 1. Cloner le dépôt
-git clone https://github.com/misbaou672/optimisation-velib.git
-cd optimisation-velib
+git clone https://github.com/misbaou672/Velib-Optim.git
+cd Velib-Optim
 
 # 2. Installer les bibliothèques requises
 pip install -r requirements.txt
@@ -67,13 +67,15 @@ L'application génèrera la carte interactive `carte_velib_optimisee.html` que v
 
 ---
 
-## 🛠️ Structure du Projet
+## Structure du Projet
 
 ```text
-optimisation-velib/
+Velib-Optim/
 ├── optimisation_velib.py          # Script principal (Data, Delaunay, MST, Dijkstra, Folium)
 ├── carte_velib_optimisee.html      # Application web interactive (Folium + Leaflet + Chart.js)
 ├── rapport_statistiques_velib.json # Rapport de synthèse au format JSON
+├── plan.md                         # Roadmap et évolutions futures
+├── anomalies_et_limites.md         # Rapport d'anomalies et points d'attention
 ├── data/
 │   ├── stations_velib_idf_complete.json # Dataset des 1518 stations
 │   └── graphiques_velib.png        # Tableau de bord analytique Matplotlib
