@@ -5,16 +5,13 @@ Auteur : Misbaou DIALLO (BUT 3 Informatique)
 ==============================================================================
 
 Fonctionnalités avancées :
-  1. Triangulation de Delaunay (SciPy) pour réduire la complexité spatiale.
+  1. Triangulation de Delaunay (SciPy) : Visualisation en Maillage Néon Cyan avec Bouton On/Off.
   2. Algorithmes MST : Kruskal (Union-Find) & Prim (Min-Heap) pour le réseau minimal.
   3. Recherche d'Itinéraire Optimal (Dijkstra) :
      - Par Sélection dans le Menu Déroulant
      - PAR CLIC DIRECT SUR DEUX STATIONS SUR LA CARTE INTERACTIVE
-  4. Graphiques & Analytics Visuels (Matplotlib + Chart.js) :
-     - Top 10 Stations par Capacité
-     - Répartition par Département & Commune
-     - Distribution des Distances Inter-Stations
-  5. Application Web Interactive HTML (Folium + Leaflet + Calculateur + Chart.js Dashboard).
+  4. Graphiques & Analytics Visuels (Matplotlib + Chart.js).
+  5. Application Web Interactive HTML (Folium + Leaflet + Toggle Delaunay + Calculateur + Chart.js).
 """
 
 import argparse
@@ -269,7 +266,7 @@ def generer_statistiques(df, edges, weight_mst):
 
 
 def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, default_target_idx=15):
-    """Génère la carte interactive HTML avec sélection par CLIC SUR LA CARTE + dropdowns + Chart.js."""
+    """Génère la carte HTML avec Delaunay Néon activable, Clic 2 stations, Dropdowns et Chart.js."""
     center_lat = df["latitude"].mean()
     center_lon = df["longitude"].mean()
     m = folium.Map(location=[center_lat, center_lon], zoom_start=11, tiles="OpenStreetMap")
@@ -288,7 +285,6 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
             "commune": row["commune"]
         })
 
-        # Marqueur interactif avec événement de clic JS personnalisé
         popup_html = f"""
         <div style="font-family:sans-serif; min-width:180px;">
             <b style="color:#1D4ED8; font-size:14px;">{row['nom']}</b><br>
@@ -309,20 +305,35 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
             fill_opacity=0.8
         ).add_to(marker_cluster)
 
-    mst_group = folium.FeatureGroup(name="Réseau Optimal Optimisé (MST - 502 km)")
+    # Groupe 1 : Triangulation de Delaunay (Violet Néon très visible)
+    delaunay_group = folium.FeatureGroup(name="🌐 Maillage Triangulation de Delaunay (4 536 arêtes)")
+    for u, v, weight in edges:
+        loc1 = [df.loc[u, "latitude"], df.loc[u, "longitude"]]
+        loc2 = [df.loc[v, "latitude"], df.loc[v, "longitude"]]
+        folium.PolyLine(
+            locations=[loc1, loc2],
+            weight=1.5,
+            color="#8B5CF6",  # Violet Néon Vif
+            opacity=0.55,
+            tooltip=f"Delaunay: {weight*1000:.0f} m"
+        ).add_to(delaunay_group)
+
+    # Groupe 2 : MST Réseau Optimal (Vert Émeraude)
+    mst_group = folium.FeatureGroup(name="🟢 Réseau Optimal Optimisé (MST - 502 km)")
     for u, v, weight in mst_edges:
         loc1 = [df.loc[u, "latitude"], df.loc[u, "longitude"]]
         loc2 = [df.loc[v, "latitude"], df.loc[v, "longitude"]]
         folium.PolyLine(
             locations=[loc1, loc2],
-            weight=2.5,
-            color="#38A169",
-            opacity=0.8,
-            tooltip=f"{weight*1000:.0f} m"
+            weight=3.0,
+            color="#10B981",  # Vert Émeraude Vif
+            opacity=0.9,
+            tooltip=f"MST: {weight*1000:.0f} m"
         ).add_to(mst_group)
 
+    delaunay_group.add_to(m)
     mst_group.add_to(m)
-    folium.LayerControl().add_to(m)
+    folium.LayerControl(collapsed=False).add_to(m)
     MiniMap(toggle_display=True).add_to(m)
 
     m.save(OUTPUT_MAP)
@@ -384,9 +395,13 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
         <select id="target-station" style="width:100%; padding:7px; margin:4px 0 12px 0; border-radius:6px; border:1px solid #CBD5E0;"></select>
         
         <button onclick="calculateRoute()" style="
-            width:100%; background:#2563EB; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer; transition:0.2s;
+            width:100%; background:#2563EB; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer; transition:0.2s; margin-bottom:8px;
         ">🔍 Calculer le chemin le plus court</button>
         
+        <button id="toggle-delaunay-btn" onclick="toggleDelaunayLayer()" style="
+            width:100%; background:#8B5CF6; color:white; border:none; padding:9px; border-radius:6px; font-weight:bold; cursor:pointer; transition:0.2s;
+        ">🌐 Basculer Triangulation de Delaunay (On/Off)</button>
+
         <div id="route-results" style="margin-top:12px; display:none; padding:12px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
             <div style="font-weight:bold; color:#1D4ED8; margin-bottom:6px;">Résultat du trajet (Dijkstra) :</div>
             <div>📏 Distance : <b id="route-dist" style="color:#0F172A;">-</b></div>
@@ -416,6 +431,7 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
     const EDGES = {json.dumps(edges_js)};
     let activeRouteLayer = null;
     let clickSelectionStep = 0;
+    let delaunayLayerRef = null;
 
     document.addEventListener("DOMContentLoaded", function() {{
         const selectStart = document.getElementById("start-station");
@@ -470,7 +486,25 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
         }});
     }});
 
-    // SÉLECTION PAR CLIC SUR LA CARTE
+    function toggleDelaunayLayer() {{
+        const mapObj = Object.values(window).find(v => v && v.addLayer && v.eachLayer);
+        if (!mapObj) return;
+
+        mapObj.eachLayer(layer => {{
+            if (layer.options && layer.options.name && layer.options.name.includes("Delaunay")) {{
+                delaunayLayerRef = layer;
+            }}
+        }});
+
+        if (delaunayLayerRef) {{
+            if (mapObj.hasLayer(delaunayLayerRef)) {{
+                mapObj.removeLayer(delaunayLayerRef);
+            }} else {{
+                mapObj.addLayer(delaunayLayerRef);
+            }}
+        }}
+    }}
+
     function selectStationByClick(stationIdx) {{
         const selectStart = document.getElementById("start-station");
         const selectTarget = document.getElementById("target-station");
@@ -617,9 +651,9 @@ def main():
     # 4. Statistiques analytiques JSON
     generer_statistiques(df, edges, weight_kruskal)
 
-    # 5. Carte HTML interactive avec Clic sur Carte + Dropdowns + Chart.js
+    # 5. Carte HTML interactive avec Delaunay Néon + Bouton Toggle + Clic 2 stations + Chart.js
     generer_carte_html_interactive(df, mst_kruskal, edges, args.depart or 0, args.arrivee or 15)
-    print(f"[✓] Carte interactive mise à jour (Clic 2 stations + Dijkstra) : {OUTPUT_MAP}")
+    print(f"[✓] Carte interactive mise à jour (Triangulation Delaunay Violet Néon + Bouton Toggle) : {OUTPUT_MAP}")
     print("[✓] Processus terminé avec succès !")
 
 
