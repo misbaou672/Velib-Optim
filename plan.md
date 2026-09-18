@@ -7,7 +7,7 @@
 ---
 
 > [!NOTE]
-> **Origine du document** : Ce plan de développement regroupe les évolutions futures imaginées pour prolonger le projet universitaire initial de **BUT Informatique**, développé et perfectionné sur mon temps libre par **Misbaou DIALLO**.
+> **Origine du document** : Ce plan de développement regroupe les évolutions futures imaginées pour prolonger le projet universitaire initial de **BUT Informatique**, développé et perfectionné sur mon temps libre par **misbaou**.
 
 ---
 
