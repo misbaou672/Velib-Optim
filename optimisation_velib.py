@@ -2,10 +2,11 @@
 Optimisation et analyse spatiale du réseau Vélib en Île-de-France (1 518 stations).
 
 Projet de théorie des graphes et d'optimisation :
+- Connexion en direct à l'API OpenData Paris (Mise à jour en temps réel)
 - Triangulation de Delaunay avec coloration selon la surface (densité spatiale)
 - Algorithmes d'Arbre Couvrant Minimum (Kruskal & Prim)
 - Recherche de plus court chemin (Dijkstra)
-- Visualisation interactive avec Folium, Leaflet et Chart.js
+- Visualisation interactive dynamique avec Folium, Leaflet et Chart.js
 
 Auteur : Misbaou DIALLO (BUT 3 Informatique)
 """
@@ -33,7 +34,7 @@ DATA_FILE = os.path.join(DATA_DIR, "stations_velib_idf_complete.json")
 OUTPUT_MAP = os.path.join(BASE_DIR, "carte_velib_optimisee.html")
 REPORT_FILE = os.path.join(BASE_DIR, "rapport_statistiques_velib.json")
 GRAPH_IMAGE = os.path.join(DATA_DIR, "graphiques_velib.png")
-OPENDATA_URL = "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/exports/json"
+OPENDATA_URL = "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/exports/json?limit=-1"
 
 
 def haversine_distance(lat1, lon1, lat2, lon2):
@@ -169,78 +170,55 @@ def algo_prim(n_vertices, edges):
     return mst, total_weight, exec_time
 
 
-def algo_dijkstra(n_vertices, edges, start_node, target_node):
-    """Algorithme de Dijkstra pour trouver le plus court chemin."""
-    start_time = time.perf_counter()
-    adj = {i: [] for i in range(n_vertices)}
-    for u, v, weight in edges:
-        adj[u].append((weight, v))
-        adj[v].append((weight, u))
-
-    distances = {i: float('inf') for i in range(n_vertices)}
-    distances[start_node] = 0.0
-    predecessors = {i: None for i in range(n_vertices)}
-    pq = [(0.0, start_node)]
-
-    while pq:
-        curr_dist, u = heapq.heappop(pq)
-        if u == target_node:
-            break
-        if curr_dist > distances[u]:
-            continue
-
-        for weight, v in adj[u]:
-            distance = curr_dist + weight
-            if distance < distances[v]:
-                distances[v] = distance
-                predecessors[v] = u
-                heapq.heappush(pq, (distance, v))
-
-    path = []
-    curr = target_node
-    while curr is not None:
-        path.append(curr)
-        curr = predecessors[curr]
-    path.reverse()
-
-    exec_time = (time.perf_counter() - start_time) * 1000
-    return path, distances[target_node], exec_time
-
-
 def charger_donnees():
-    """Charge les données réelles des stations depuis le cache local ou l'API OpenData."""
+    """Charge les données réelles et temps réel des stations depuis l'API OpenData Paris."""
     os.makedirs(DATA_DIR, exist_ok=True)
+    print("Connexion en direct à l'API OpenData Paris (Disponibilité temps réel)...")
+    try:
+        r = requests.get(OPENDATA_URL, timeout=15)
+        if r.status_code == 200:
+            data = r.json()
+            formatted = []
+            for s in data:
+                coords = s.get('coordonnees_geo') or {}
+                lat, lon = coords.get('lat'), coords.get('lon')
+                if lat and lon:
+                    formatted.append({
+                        'id': str(s.get('stationcode', '')),
+                        'nom': s.get('name', 'Station Vélib'),
+                        'latitude': float(lat),
+                        'longitude': float(lon),
+                        'capacite': int(s.get('capacity', 0)),
+                        'numbikesavailable': int(s.get('numbikesavailable', 0)),
+                        'numdocksavailable': int(s.get('numdocksavailable', 0)),
+                        'ebike': int(s.get('ebike', 0)),
+                        'mechanical': int(s.get('mechanical', 0)),
+                        'is_renting': s.get('is_renting', 'OUI'),
+                        'is_returning': s.get('is_returning', 'OUI'),
+                        'commune': s.get('nom_arrondissement_communes', 'Île-de-France'),
+                        'code_insee': s.get('code_insee_commune', ''),
+                        'duedate': s.get('duedate', '')
+                    })
+            if formatted:
+                with open(DATA_FILE, "w", encoding="utf-8") as f:
+                    json.dump(formatted, f, ensure_ascii=False, indent=2)
+                print(f"-> API Réussie : {len(formatted)} stations synchronisées en direct.")
+                return formatted
+    except Exception as e:
+        print(f"Avertissement API Live ({e}). Chargement depuis le cache local...")
+
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
 
-    print("Téléchargement des stations depuis l'API OpenData Paris...")
-    r = requests.get(OPENDATA_URL, timeout=15)
-    data = r.json()
-    formatted = []
-    for s in data:
-        coords = s.get('coordonnees_geo') or {}
-        lat, lon = coords.get('lat'), coords.get('lon')
-        if lat and lon:
-            formatted.append({
-                'id': s.get('stationcode'),
-                'nom': s.get('name'),
-                'latitude': lat,
-                'longitude': lon,
-                'capacite': s.get('capacity', 0),
-                'commune': s.get('nom_arrondissement_communes', 'Île-de-France'),
-                'code_insee': s.get('code_insee_commune', '')
-            })
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(formatted, f, ensure_ascii=False, indent=2)
-    return formatted
+    raise RuntimeError("Impossible d'obtenir les données Vélib en direct ou depuis le cache.")
 
 
 def generer_graphiques_matplotlib(df, edges):
     """Génère le tableau de bord analytique en PNG avec Matplotlib."""
     plt.style.use('dark_background')
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle("Analyse du Réseau Vélib Île-de-France (1 518 stations)",
+    fig.suptitle("Analyse Temps Réel du Réseau Vélib Île-de-France",
                  fontsize=14, fontweight='bold', color='#6366F1')
 
     # Top 10 par capacité
@@ -277,11 +255,12 @@ def generer_graphiques_matplotlib(df, edges):
 def generer_statistiques(df, edges, weight_mst):
     """Exporte les métriques du réseau au format JSON."""
     total_stations = len(df)
-    total_capacite = int(df['capacite'].sum())
-    moyenne_capacite = float(df['capacite'].mean())
+    total_capacite = int(df['capacite'].sum()) if 'capacite' in df else 0
+    total_velos_dispo = int(df['numbikesavailable'].sum()) if 'numbikesavailable' in df else 0
+    total_bornettes_libres = int(df['numdocksavailable'].sum()) if 'numdocksavailable' in df else 0
 
     top_capacites = df.sort_values(by='capacite', ascending=False).head(10)[
-        ['nom', 'commune', 'capacite']
+        ['nom', 'commune', 'capacite', 'numbikesavailable']
     ].to_dict(orient='records')
 
     par_commune = df['commune'].value_counts().head(15).to_dict()
@@ -291,8 +270,9 @@ def generer_statistiques(df, edges, weight_mst):
         "metriques_generales": {
             "total_stations": total_stations,
             "total_communes": df['commune'].nunique(),
+            "total_velos_dispo_temps_reel": total_velos_dispo,
+            "total_bornettes_libres_temps_reel": total_bornettes_libres,
             "capacite_totale_velos": total_capacite,
-            "capacite_moyenne_station": round(moyenne_capacite, 2),
             "distance_mst_totale_km": round(weight_mst, 2),
             "nombre_connexions_delaunay": len(edges),
             "distance_inter_station_moyenne_km": round(sum(distances) / len(distances), 3)
@@ -308,7 +288,7 @@ def generer_statistiques(df, edges, weight_mst):
 
 
 def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=0, default_target_idx=15):
-    """Génère la carte web interactive Folium / Leaflet ultra-rapide (Canvas GPU + GeoJSON)."""
+    """Génère la carte web interactive Folium / Leaflet avec métriques dynamiques temps réel."""
     center_lat = df["latitude"].mean()
     center_lon = df["longitude"].mean()
     m = folium.Map(
@@ -318,35 +298,66 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         prefer_canvas=True
     )
 
-    marker_cluster = MarkerCluster(name="Stations Vélib (1 518)").add_to(m)
+    # Calcul dynamique des métriques du KPI banner
+    total_stations = len(df)
+    total_capacite = int(df['capacite'].sum()) if 'capacite' in df else 0
+    total_velos_dispo = int(df['numbikesavailable'].sum()) if 'numbikesavailable' in df else 0
+    total_ebikes = int(df['ebike'].sum()) if 'ebike' in df else 0
+    total_bornettes_libres = int(df['numdocksavailable'].sum()) if 'numdocksavailable' in df else 0
+    total_communes = df['commune'].nunique()
+    weight_mst_sum = round(sum(w for _, _, w in mst_edges), 1)
+
+    marker_cluster = MarkerCluster(name=f"Stations Vélib ({total_stations:,})").add_to(m)
 
     stations_js_data = []
     coords_list = []
     for idx, row in df.iterrows():
         coords_list.append((row["longitude"], row["latitude"]))
+        bikes_dispo = int(row.get('numbikesavailable', 0))
+        docks_dispo = int(row.get('numdocksavailable', 0))
+        ebikes = int(row.get('ebike', 0))
+        mech = int(row.get('mechanical', 0))
+        capa = int(row.get('capacite', 0))
+
         stations_js_data.append({
             "idx": idx,
             "id": row["id"],
             "nom": row["nom"],
             "lat": row["latitude"],
             "lon": row["longitude"],
-            "capacite": row["capacite"],
+            "capacite": capa,
+            "bikes": bikes_dispo,
+            "docks": docks_dispo,
+            "ebike": ebikes,
+            "mech": mech,
             "commune": row["commune"]
         })
 
         popup_html = f"""
-        <div style="font-family: system-ui, -apple-system, sans-serif; min-width:180px;">
+        <div style="font-family: system-ui, -apple-system, sans-serif; min-width:200px;">
             <div style="font-weight:700; color:#1E40AF; font-size:14px; margin-bottom:4px;">{row['nom']}</div>
-            <div style="color:#475569; font-size:12px; display:flex; align-items:center; gap:5px; margin-bottom:2px;">
+            <div style="color:#475569; font-size:12px; display:flex; align-items:center; gap:5px; margin-bottom:6px;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
                 <span>Commune : <b>{row['commune']}</b></span>
             </div>
-            <div style="color:#475569; font-size:12px; display:flex; align-items:center; gap:5px; margin-bottom:8px;">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9.5 10l-3 3.5M12 17.5V10l3.5-4H18"/></svg>
-                <span>Capacité : <b>{row['capacite']}</b> vélos</span>
+            
+            <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:8px; margin:6px 0; font-size:11px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <span style="color:#334155; font-weight:600;">🚲 Vélos dispo :</span>
+                    <b style="color:#059669; font-size:13px;">{bikes_dispo}</b>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:10px; color:#64748B; margin-bottom:4px; padding-left:8px;">
+                    <span>⚡ Elec: <b>{ebikes}</b></span>
+                    <span>🚲 Méca: <b>{mech}</b></span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #CBD5E1; padding-top:4px;">
+                    <span style="color:#334155; font-weight:600;">🔌 Bornettes libres :</span>
+                    <b style="color:#2563EB; font-size:12px;">{docks_dispo} / {capa}</b>
+                </div>
             </div>
+
             <button onclick="selectStationByClick({idx})" style="
-                width:100%; background:#2563EB; color:white; border:none; padding:6px 8px; border-radius:4px; font-weight:600; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px;
+                width:100%; background:#2563EB; color:white; border:none; padding:7px 8px; border-radius:6px; font-weight:700; font-size:12px; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:5px; margin-top:6px;
             ">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
                 <span>Sélectionner pour itinéraire</span>
@@ -356,7 +367,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         folium.CircleMarker(
             location=[row["latitude"], row["longitude"]],
             radius=5,
-            popup=folium.Popup(popup_html, max_width=250),
+            popup=folium.Popup(popup_html, max_width=260),
             color="#2B6CB0",
             fill=True,
             fill_color="#3182CE",
@@ -395,7 +406,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
             tooltip=f"Triangle Delaunay<br>Surface : <b>{area_str}</b><br>Densité : {'Forte' if opacity > 0.5 else 'Faible'}"
         ).add_to(delaunay_group)
 
-    mst_group = folium.FeatureGroup(name="Réseau Optimal (MST - 502 km)")
+    mst_group = folium.FeatureGroup(name=f"Réseau Optimal (MST - {weight_mst_sum} km)")
     for u, v, weight in mst_edges:
         loc1 = [df.loc[u, "latitude"], df.loc[u, "longitude"]]
         loc2 = [df.loc[v, "latitude"], df.loc[v, "longitude"]]
@@ -545,7 +556,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     }}
     </style>
 
-    <!-- Top KPI Banner (Glossy Animated Glassmorphism) -->
+    <!-- Top KPI Banner (Métriques Dynamiques Temps Réel) -->
     <div id="kpi-banner" style="
         position: fixed; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 9999;
     ">
@@ -555,7 +566,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
             </div>
             <div>
                 <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Stations</div>
-                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">1 518</div>
+                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{total_stations:,}</div>
             </div>
         </div>
         <div class="kpi-card">
@@ -563,8 +574,11 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9.5 10l-3 3.5M12 17.5V10l3.5-4H18"/></svg>
             </div>
             <div>
-                <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Bornettes</div>
-                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">49 060</div>
+                <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; display:flex; align-items:center; gap:4px;">
+                    <span>Vélos Dispo (Live)</span>
+                    <span style="width:6px; height:6px; border-radius:50%; background:#34D399; box-shadow:0 0 6px #34D399;"></span>
+                </div>
+                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{total_velos_dispo:,}</div>
             </div>
         </div>
         <div class="kpi-card">
@@ -573,7 +587,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
             </div>
             <div>
                 <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Réseau MST</div>
-                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">502 km</div>
+                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{weight_mst_sum} km</div>
             </div>
         </div>
         <div class="kpi-card">
@@ -582,7 +596,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
             </div>
             <div>
                 <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Communes</div>
-                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">69</div>
+                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{total_communes}</div>
             </div>
         </div>
     </div>
