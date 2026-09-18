@@ -308,10 +308,15 @@ def generer_statistiques(df, edges, weight_mst):
 
 
 def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=0, default_target_idx=15):
-    """Génère la carte web interactive Folium / Leaflet."""
+    """Génère la carte web interactive Folium / Leaflet ultra-rapide (Canvas GPU + GeoJSON)."""
     center_lat = df["latitude"].mean()
     center_lon = df["longitude"].mean()
-    m = folium.Map(location=[center_lat, center_lon], zoom_start=11, tiles="OpenStreetMap")
+    m = folium.Map(
+        location=[center_lat, center_lon],
+        zoom_start=11,
+        tiles="OpenStreetMap",
+        prefer_canvas=True
+    )
 
     marker_cluster = MarkerCluster(name="Stations Vélib (1 518)").add_to(m)
 
@@ -371,36 +376,75 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     min_area = min(triangle_areas)
     max_area = max(triangle_areas)
 
-    delaunay_group = folium.FeatureGroup(name="Maillage Delaunay (Coloration par superficie)")
+    # GeoJSON Haute Performance pour les 1512 triangles Delaunay
+    delaunay_features = []
     for simplex, area in triangle_data:
-        p1 = [df.loc[simplex[0], "latitude"], df.loc[simplex[0], "longitude"]]
-        p2 = [df.loc[simplex[1], "latitude"], df.loc[simplex[1], "longitude"]]
-        p3 = [df.loc[simplex[2], "latitude"], df.loc[simplex[2], "longitude"]]
-
+        p1 = [df.loc[simplex[0], "longitude"], df.loc[simplex[0], "latitude"]]
+        p2 = [df.loc[simplex[1], "longitude"], df.loc[simplex[1], "latitude"]]
+        p3 = [df.loc[simplex[2], "longitude"], df.loc[simplex[2], "latitude"]]
         color, opacity = obtenir_couleur_delaunay(area, min_area, max_area)
         area_str = f"{area * 100:.1f} ha" if area < 1.0 else f"{area:.2f} km²"
 
-        folium.Polygon(
-            locations=[p1, p2, p3],
-            color="#4C1D95",
-            weight=1.0,
-            fill=True,
-            fill_color=color,
-            fill_opacity=opacity,
-            tooltip=f"Triangle Delaunay<br>Surface : <b>{area_str}</b><br>Densité : {'Forte (couleur sombre)' if opacity > 0.5 else 'Faible (couleur claire)'}"
-        ).add_to(delaunay_group)
+        delaunay_features.append({
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[p1, p2, p3, p1]]
+            },
+            "properties": {
+                "fillColor": color,
+                "fillOpacity": opacity,
+                "area_str": area_str,
+                "density_str": "Forte (sombre)" if opacity > 0.5 else "Faible (claire)"
+            }
+        })
+
+    delaunay_group = folium.FeatureGroup(name="Maillage Delaunay (Coloration par superficie)")
+    folium.GeoJson(
+        {"type": "FeatureCollection", "features": delaunay_features},
+        style_function=lambda feat: {
+            'fillColor': feat['properties']['fillColor'],
+            'color': '#4C1D95',
+            'weight': 0.9,
+            'fillOpacity': feat['properties']['fillOpacity']
+        },
+        tooltip=folium.GeoJsonTooltip(
+            fields=['area_str', 'density_str'],
+            aliases=['Surface :', 'Densité :'],
+            localize=True
+        )
+    ).add_to(delaunay_group)
+
+    # GeoJSON Haute Performance pour le réseau MST
+    mst_features = []
+    for u, v, weight in mst_edges:
+        p1 = [df.loc[u, "longitude"], df.loc[u, "latitude"]]
+        p2 = [df.loc[v, "longitude"], df.loc[v, "latitude"]]
+        mst_features.append({
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [p1, p2]
+            },
+            "properties": {
+                "dist": f"{weight*1000:.0f} m"
+            }
+        })
 
     mst_group = folium.FeatureGroup(name="Réseau Optimal (MST - 502 km)")
-    for u, v, weight in mst_edges:
-        loc1 = [df.loc[u, "latitude"], df.loc[u, "longitude"]]
-        loc2 = [df.loc[v, "latitude"], df.loc[v, "longitude"]]
-        folium.PolyLine(
-            locations=[loc1, loc2],
-            weight=3.2,
-            color="#10B981",
-            opacity=0.95,
-            tooltip=f"MST: {weight*1000:.0f} m"
-        ).add_to(mst_group)
+    folium.GeoJson(
+        {"type": "FeatureCollection", "features": mst_features},
+        style_function=lambda feat: {
+            'color': '#10B981',
+            'weight': 3.0,
+            'opacity': 0.95
+        },
+        tooltip=folium.GeoJsonTooltip(
+            fields=['dist'],
+            aliases=['Distance MST :'],
+            localize=True
+        )
+    ).add_to(mst_group)
 
     delaunay_group.add_to(m)
     mst_group.add_to(m)
