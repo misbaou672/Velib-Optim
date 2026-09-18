@@ -424,158 +424,244 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     chart_commune_values = communes_top.values.tolist()
 
     dashboard_ui_html = f"""
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
+    * {{
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+    }}
     .leaflet-top.leaflet-left {{
         top: 75px !important;
         left: 15px !important;
     }}
+    
+    /* Animations & Glassmorphism Design System */
+    @keyframes floatIn {{
+        from {{ opacity: 0; transform: translateY(-12px); }}
+        to {{ opacity: 1; transform: translateY(0); }}
+    }}
+    @keyframes pulseGlow {{
+        0%, 100% {{ box-shadow: 0 8px 32px rgba(15, 23, 42, 0.3), inset 0 0 0 1px rgba(255, 255, 255, 0.1); }}
+        50% {{ box-shadow: 0 12px 36px rgba(99, 102, 241, 0.25), inset 0 0 0 1px rgba(139, 92, 246, 0.3); }}
+    }}
+
+    .glass-panel {{
+        background: rgba(15, 23, 42, 0.85) !important;
+        backdrop-filter: blur(18px) saturate(180%) !important;
+        -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.35) !important;
+        color: #F8FAFC !important;
+    }}
+
     .kpi-card {{
-        background: rgba(15, 23, 42, 0.92);
+        background: rgba(15, 23, 42, 0.88);
         color: white;
-        padding: 6px 12px;
-        border-radius: 8px;
-        backdrop-filter: blur(8px);
-        border: 1px solid #334155;
+        padding: 6px 14px;
+        border-radius: 12px;
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: 10px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        animation: floatIn 0.5s ease-out forwards;
     }}
+    .kpi-card:hover {{
+        transform: translateY(-2px);
+        border-color: rgba(99, 102, 241, 0.4);
+        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.25);
+    }}
+
     .kpi-icon {{
         display: flex;
         align-items: center;
         justify-content: center;
-        width: 28px;
-        height: 28px;
-        border-radius: 6px;
-        background: rgba(255, 255, 255, 0.1);
+        width: 32px;
+        height: 32px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        transition: transform 0.3s ease;
+    }}
+    .kpi-card:hover .kpi-icon {{
+        transform: scale(1.1);
+    }}
+
+    .btn-gradient {{
+        background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%) !important;
+        color: white !important;
+        border: none !important;
+        padding: 9px 14px !important;
+        border-radius: 8px !important;
+        font-weight: 700 !important;
+        cursor: pointer !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 6px !important;
+        font-size: 12px !important;
+        transition: all 0.25s ease !important;
+        box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+    }}
+    .btn-gradient:hover {{
+        transform: translateY(-1px) !important;
+        box-shadow: 0 6px 20px rgba(37, 99, 235, 0.5) !important;
+        filter: brightness(1.1) !important;
+    }}
+    .btn-gradient:active {{
+        transform: translateY(0) !important;
+    }}
+
+    .btn-purple {{
+        background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%) !important;
+        box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35) !important;
+    }}
+    .btn-purple:hover {{
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.5) !important;
+    }}
+
+    .custom-select {{
+        width: 100%;
+        padding: 7px 10px;
+        margin: 4px 0 10px 0;
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.95);
+        color: #F8FAFC;
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        font-size: 12px;
+        outline: none;
+        transition: border 0.2s;
+    }}
+    .custom-select:focus {{
+        border-color: #6366F1;
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
     }}
     </style>
 
-    <!-- Top KPI Banner -->
+    <!-- Top KPI Banner (Glossy Animated Glassmorphism) -->
     <div id="kpi-banner" style="
-        position: fixed; top: 12px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 9999; font-family: system-ui, -apple-system, sans-serif;
+        position: fixed; top: 14px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 9999;
     ">
         <div class="kpi-card">
-            <div class="kpi-icon" style="color: #38BDF8;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <div class="kpi-icon" style="color: #38BDF8; background: rgba(56, 189, 248, 0.15);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
             </div>
             <div>
-                <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 700;">Stations</div>
-                <div style="font-size: 15px; font-weight: 700; color: #38BDF8;">1 518</div>
+                <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Stations</div>
+                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">1 518</div>
             </div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-icon" style="color: #34D399;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9.5 10l-3 3.5M12 17.5V10l3.5-4H18"/></svg>
+            <div class="kpi-icon" style="color: #34D399; background: rgba(52, 211, 153, 0.15);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="5.5" cy="17.5" r="3.5"/><circle cx="18.5" cy="17.5" r="3.5"/><path d="M15 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm-3 11.5L9.5 10l-3 3.5M12 17.5V10l3.5-4H18"/></svg>
             </div>
             <div>
-                <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 700;">Bornettes</div>
-                <div style="font-size: 15px; font-weight: 700; color: #34D399;">49 060</div>
+                <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Bornettes</div>
+                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">49 060</div>
             </div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-icon" style="color: #FBBF24;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><circle cx="12" cy="6" r="3"/><path d="M8.5 17l2.5-8.5M15.5 17l-2.5-8.5"/></svg>
+            <div class="kpi-icon" style="color: #FBBF24; background: rgba(251, 191, 36, 0.15);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="6" cy="19" r="3"/><circle cx="18" cy="5" r="3"/><circle cx="12" cy="6" r="3"/><path d="M8.5 17l2.5-8.5M15.5 17l-2.5-8.5"/></svg>
             </div>
             <div>
-                <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 700;">Réseau MST</div>
-                <div style="font-size: 15px; font-weight: 700; color: #FBBF24;">502 km</div>
+                <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Réseau MST</div>
+                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">502 km</div>
             </div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-icon" style="color: #F472B6;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+            <div class="kpi-icon" style="color: #F472B6; background: rgba(244, 114, 182, 0.15);">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
             </div>
             <div>
-                <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 700;">Communes</div>
-                <div style="font-size: 15px; font-weight: 700; color: #F472B6;">69</div>
+                <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Communes</div>
+                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">69</div>
             </div>
         </div>
     </div>
 
-    <!-- Compact Route Calculator Panel (Top Right) -->
-    <div id="route-panel" style="
-        position: fixed; top: 75px; right: 15px; width: 300px; background: rgba(255, 255, 255, 0.96); border-radius: 12px; padding: 14px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 9999; font-family: system-ui, -apple-system, sans-serif; font-size: 12px; backdrop-filter: blur(8px); border: 1px solid #E2E8F0;
+    <!-- Compact Route Calculator Panel (Top Right - Glassmorphism) -->
+    <div id="route-panel" class="glass-panel" style="
+        position: fixed; top: 75px; right: 15px; width: 300px; border-radius: 16px; padding: 16px; z-index: 9999; font-size: 12px; animation: floatIn 0.6s ease-out forwards;
     ">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-            <div style="font-weight:700; color:#1E293B; font-size:14px; display:flex; align-items:center; gap:6px;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></svg>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div style="font-weight:800; color:#F8FAFC; font-size:14px; display:flex; align-items:center; gap:8px;">
+                <div style="width:24px; height:24px; border-radius:6px; background:rgba(99, 102, 241, 0.2); display:flex; align-items:center; justify-content:center; color:#818CF8;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></svg>
+                </div>
                 <span>Itinéraire Dijkstra</span>
             </div>
-            <button onclick="toggleStatsDrawer()" style="background:#F1F5F9; border:1px solid #CBD5E1; color:#475569; padding:4px 8px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:4px;">
+            <button onclick="toggleStatsDrawer()" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#94A3B8; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; transition:all 0.2s;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
                 <span>Stats</span>
             </button>
         </div>
         
-        <label style="font-weight:600; color:#475569;">Départ :</label>
-        <select id="start-station" style="width:100%; padding:6px; margin:3px 0 8px 0; border-radius:6px; border:1px solid #CBD5E0; font-size:12px;"></select>
+        <label style="font-weight:700; color:#94A3B8; font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">Départ</label>
+        <select id="start-station" class="custom-select"></select>
         
-        <label style="font-weight:600; color:#475569;">Arrivée :</label>
-        <select id="target-station" style="width:100%; padding:6px; margin:3px 0 10px 0; border-radius:6px; border:1px solid #CBD5E0; font-size:12px;"></select>
+        <label style="font-weight:700; color:#94A3B8; font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">Arrivée</label>
+        <select id="target-station" class="custom-select"></select>
         
-        <button onclick="calculateRoute()" style="
-            width:100%; background:#2563EB; color:white; border:none; padding:8px; border-radius:6px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px; font-size:12px;
-        ">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <button onclick="calculateRoute()" class="btn-gradient" style="width:100%; margin-top:4px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             <span>Calculer trajet</span>
         </button>
 
-        <div id="route-results" style="margin-top:10px; display:none; padding:10px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
-            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span style="color:#64748B;">Distance :</span>
-                <b id="route-dist" style="color:#0F172A;">-</b>
+        <div id="route-results" style="margin-top:12px; display:none; padding:12px; background:rgba(0,0,0,0.3); border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <span style="color:#94A3B8;">Distance :</span>
+                <b id="route-dist" style="color:#38BDF8;">-</b>
             </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-                <span style="color:#64748B;">Temps vélo (15km/h) :</span>
-                <b id="route-time" style="color:#0F172A;">-</b>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <span style="color:#94A3B8;">Temps (15km/h) :</span>
+                <b id="route-time" style="color:#34D399;">-</b>
             </div>
             <div style="display:flex; justify-content:space-between;">
-                <span style="color:#64748B;">Stations :</span>
-                <b id="route-hops" style="color:#0F172A;">-</b>
+                <span style="color:#94A3B8;">Stations :</span>
+                <b id="route-hops" style="color:#F8FAFC;">-</b>
             </div>
         </div>
 
         <!-- Collapsible Stats Drawer inside panel -->
-        <div id="stats-drawer" style="display:none; margin-top:12px; border-top:1px solid #E2E8F0; padding-top:10px;">
-            <div style="font-size:11px; font-weight:700; color:#64748B; margin-bottom:6px;">Top capacités</div>
+        <div id="stats-drawer" style="display:none; margin-top:14px; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px;">
+            <div style="font-size:11px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Top Capacités</div>
             <canvas id="chartTopCapacity" height="140"></canvas>
 
-            <div style="font-size:11px; font-weight:700; color:#64748B; margin:10px 0 6px 0;">Répartition communes</div>
+            <div style="font-size:11px; font-weight:800; color:#94A3B8; text-transform:uppercase; letter-spacing:0.5px; margin:12px 0 8px 0;">Répartition Communes</div>
             <canvas id="chartCommunes" height="140"></canvas>
         </div>
     </div>
 
-    <!-- Mini Bottom Banner Legend (Delaunay Density Scale) -->
-    <div id="bottom-legend-banner" style="
-        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; background: rgba(15, 23, 42, 0.92); color: white; padding: 7px 18px; border-radius: 30px; backdrop-filter: blur(10px); border: 1px solid #334155; z-index: 9999; font-family: system-ui, -apple-system, sans-serif; font-size: 11px; box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    <!-- Mini Bottom Banner Legend (Glossy Pill with Subtle Glow) -->
+    <div id="bottom-legend-banner" class="glass-panel" style="
+        position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px; padding: 8px 20px; border-radius: 9999px; z-index: 9999; font-size: 11px; animation: pulseGlow 4s infinite ease-in-out;
     ">
-        <div style="display:flex; align-items:center; gap:6px; font-weight:700; color:#94A3B8; border-right:1px solid #334155; padding-right:10px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A855F7" stroke-width="2"><path d="M12 2 2 22h20L12 2z"/></svg>
-            <span>LÉGENDE SURFACE</span>
+        <div style="display:flex; align-items:center; gap:6px; font-weight:800; color:#94A3B8; border-right:1px solid rgba(255,255,255,0.15); padding-right:12px; letter-spacing:0.5px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A855F7" stroke-width="2.2"><path d="M12 2 2 22h20L12 2z"/></svg>
+            <span>DENSITÉ DELAUNAY</span>
         </div>
 
-        <div style="display:flex; align-items:center; gap:5px;">
-            <span style="width:12px; height:12px; border-radius:3px; background:#0F172A; border:1px solid #475569;"></span>
-            <span style="color:#F8FAFC; font-weight:600;">Superficie réduite (Dense)</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <span style="width:12px; height:12px; border-radius:4px; background:#0F172A; border:1px solid rgba(255,255,255,0.3); box-shadow:0 0 8px rgba(15,23,42,0.8);"></span>
+            <span style="color:#F8FAFC; font-weight:700;">Haute (Sombre)</span>
         </div>
 
-        <div style="display:flex; align-items:center; gap:5px;">
-            <span style="width:12px; height:12px; border-radius:3px; background:#4338CA;"></span>
-            <span style="color:#CBD5E1;">Superficie moyenne</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <span style="width:12px; height:12px; border-radius:4px; background:#4338CA; box-shadow:0 0 8px rgba(67,56,202,0.6);"></span>
+            <span style="color:#CBD5E1; font-weight:600;">Moyenne</span>
         </div>
 
-        <div style="display:flex; align-items:center; gap:5px;">
-            <span style="width:12px; height:12px; border-radius:3px; background:#E0E7FF; border:1px solid #94A3B8;"></span>
-            <span style="color:#CBD5E1;">Grande superficie</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+            <span style="width:12px; height:12px; border-radius:4px; background:#E0E7FF; border:1px solid rgba(255,255,255,0.5); box-shadow:0 0 8px rgba(224,231,255,0.5);"></span>
+            <span style="color:#CBD5E1; font-weight:600;">Faible (Claire)</span>
         </div>
 
-        <button id="toggle-delaunay-btn" onclick="toggleDelaunayLayer()" style="
-            margin-left:6px; background:#6B21A8; color:white; border:none; padding:5px 12px; border-radius:20px; font-weight:700; font-size:11px; cursor:pointer; display:flex; align-items:center; gap:5px; transition: all 0.2s;
+        <button id="toggle-delaunay-btn" onclick="toggleDelaunayLayer()" class="btn-gradient btn-purple" style="
+            margin-left:4px; padding:5px 14px !important; border-radius:9999px !important; font-size:11px !important;
         ">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 2 22h20L12 2z"/></svg>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2 2 22h20L12 2z"/></svg>
             <span>Delaunay ON/OFF</span>
         </button>
     </div>
