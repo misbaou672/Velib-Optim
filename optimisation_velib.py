@@ -679,9 +679,13 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     let clickSelectionStep = 0;
     let delaunayLayerRef = {delaunay_var_name};
 
-    document.addEventListener("DOMContentLoaded", function() {{
+    function initVelibApp() {{
         const selectStart = document.getElementById("start-station");
         const selectTarget = document.getElementById("target-station");
+        if (!selectStart || !selectTarget) return;
+
+        selectStart.innerHTML = "";
+        selectTarget.innerHTML = "";
         
         STATIONS.forEach(s => {{
             let opt1 = document.createElement("option");
@@ -698,39 +702,51 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         selectStart.selectedIndex = {default_start_idx};
         selectTarget.selectedIndex = {default_target_idx};
 
-        new Chart(document.getElementById('chartTopCapacity'), {{
-            type: 'bar',
-            data: {{
-                labels: {json.dumps(chart_top_labels)},
-                datasets: [{{
-                    label: 'Capacité',
-                    data: {json.dumps(chart_top_values)},
-                    backgroundColor: '#3B82F6',
-                    borderRadius: 4
-                }}]
-            }},
-            options: {{
-                responsive: true,
-                plugins: {{ legend: {{ display: false }} }},
-                scales: {{ y: {{ beginAtZero: true }} }}
-            }}
-        }});
+        const canvas1 = document.getElementById('chartTopCapacity');
+        if (canvas1) {{
+            new Chart(canvas1, {{
+                type: 'bar',
+                data: {{
+                    labels: {json.dumps(chart_top_labels)},
+                    datasets: [{{
+                        label: 'Capacité',
+                        data: {json.dumps(chart_top_values)},
+                        backgroundColor: '#3B82F6',
+                        borderRadius: 4
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    plugins: {{ legend: {{ display: false }} }},
+                    scales: {{ y: {{ beginAtZero: true }} }}
+                }}
+            }});
+        }}
 
-        new Chart(document.getElementById('chartCommunes'), {{
-            type: 'doughnut',
-            data: {{
-                labels: {json.dumps(chart_commune_labels)},
-                datasets: [{{
-                    data: {json.dumps(chart_commune_values)},
-                    backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
-                }}]
-            }},
-            options: {{
-                responsive: true,
-                plugins: {{ legend: {{ position: 'right', labels: {{ boxWidth: 10, font: {{ size: 10 }} }} }} }}
-            }}
-        }});
-    }});
+        const canvas2 = document.getElementById('chartCommunes');
+        if (canvas2) {{
+            new Chart(canvas2, {{
+                type: 'doughnut',
+                data: {{
+                    labels: {json.dumps(chart_commune_labels)},
+                    datasets: [{{
+                        data: {json.dumps(chart_commune_values)},
+                        backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
+                    }}]
+                }},
+                options: {{
+                    responsive: true,
+                    plugins: {{ legend: {{ position: 'right', labels: {{ boxWidth: 10, font: {{ size: 10 }} }} }} }}
+                }}
+            }});
+        }}
+    }}
+
+    if (document.readyState === "loading") {{
+        document.addEventListener("DOMContentLoaded", initVelibApp);
+    }} else {{
+        initVelibApp();
+    }}
 
     function toggleStatsDrawer() {{
         const drawer = document.getElementById("stats-drawer");
