@@ -2,8 +2,9 @@
   "metriques_generales": {
     "total_stations": 1518,
     "total_communes": 69,
+    "total_velos_dispo_temps_reel": 18994,
+    "total_bornettes_libres_temps_reel": 28401,
     "capacite_totale_velos": 49060,
-    "capacite_moyenne_station": 32.32,
     "distance_mst_totale_km": 502.09,
     "nombre_connexions_delaunay": 4536,
     "distance_inter_station_moyenne_km": 0.563
@@ -12,52 +13,62 @@
     {
       "nom": "Station Tour de France",
       "commune": "Paris",
-      "capacite": 204
+      "capacite": 204,
+      "numbikesavailable": 0
     },
     {
       "nom": "Hippodrome de Paris Vincennes",
       "commune": "Paris",
-      "capacite": 100
-    },
-    {
-      "nom": "Hôpital Européen Georges Pompidou",
-      "commune": "Paris",
-      "capacite": 78
+      "capacite": 100,
+      "numbikesavailable": 3
     },
     {
       "nom": "Jean Macé - Faidherbe",
       "commune": "Paris",
-      "capacite": 78
+      "capacite": 78,
+      "numbikesavailable": 49
+    },
+    {
+      "nom": "Hôpital Européen Georges Pompidou",
+      "commune": "Paris",
+      "capacite": 78,
+      "numbikesavailable": 28
     },
     {
       "nom": "Pau Casals - Neuve Tolbiac",
       "commune": "Paris",
-      "capacite": 78
+      "capacite": 78,
+      "numbikesavailable": 0
     },
     {
       "nom": "Assemblée Nationale",
       "commune": "Paris",
-      "capacite": 76
+      "capacite": 76,
+      "numbikesavailable": 25
     },
     {
       "nom": "Gare d'Austerlitz - Pont Charles de Gaulle",
       "commune": "Paris",
-      "capacite": 75
-    },
-    {
-      "nom": "Emeriau - Beaugrenelle",
-      "commune": "Paris",
-      "capacite": 74
-    },
-    {
-      "nom": "Alexandre Dumas - Voltaire",
-      "commune": "Paris",
-      "capacite": 74
+      "capacite": 75,
+      "numbikesavailable": 54
     },
     {
       "nom": "M.- A. Lagroua Weill-Hallé -  F. Dolto",
       "commune": "Paris",
-      "capacite": 74
+      "capacite": 74,
+      "numbikesavailable": 3
+    },
+    {
+      "nom": "Emeriau - Beaugrenelle",
+      "commune": "Paris",
+      "capacite": 74,
+      "numbikesavailable": 55
+    },
+    {
+      "nom": "Alexandre Dumas - Voltaire",
+      "commune": "Paris",
+      "capacite": 74,
+      "numbikesavailable": 15
     }
   ],
   "repartition_par_commune": {
@@ -68,13 +79,13 @@
     "Pantin": 21,
     "Saint-Denis": 19,
     "Ivry-sur-Seine": 18,
-    "Vitry-sur-Seine": 17,
     "Créteil": 17,
+    "Vitry-sur-Seine": 17,
+    "Clichy": 13,
+    "Asnières-sur-Seine": 13,
     "Aubervilliers": 13,
     "Montrouge": 13,
     "Neuilly-sur-Seine": 13,
-    "Asnières-sur-Seine": 13,
-    "Clichy": 13,
     "Fontenay-sous-Bois": 12
   }
 }
