@@ -6,9 +6,7 @@
     "capacite_moyenne_station": 32.32,
     "distance_mst_totale_km": 502.09,
     "nombre_connexions_delaunay": 4536,
-    "distance_inter_station_moyenne_km": 0.563,
-    "distance_min_km": 0.019,
-    "distance_max_km": 12.511
+    "distance_inter_station_moyenne_km": 0.563
   },
   "top_10_stations_capacite": [
     {

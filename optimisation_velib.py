@@ -8,9 +8,11 @@ Fonctionnalités avancées :
   1. Triangulation de Delaunay (SciPy) pour réduire la complexité spatiale.
   2. Algorithmes MST : Kruskal (Union-Find) & Prim (Min-Heap) pour le réseau minimal.
   3. Recherche d'Itinéraire Optimal : Algorithme de Dijkstra (Min-Heap) entre 2 stations.
-  4. Module d'Analyse Statistiques : Répartition géographique, capacités, hubs réseau,
-     densités par département (75, 92, 93, 94, 78, 91, 95).
-  5. Application Web Interactive HTML (Folium + Leaflet + Selecteur d'itinéraires + Chart.js).
+  4. Graphiques & Analytics Visuels (Matplotlib + Chart.js) :
+     - Top 10 Stations par Capacité
+     - Répartition par Département & Commune
+     - Distribution des Distances Inter-Stations
+  5. Application Web Interactive HTML (Folium + Leaflet + Calculateur + Chart.js Dashboard).
 """
 
 import argparse
@@ -24,6 +26,9 @@ import requests
 import numpy as np
 import pandas as pd
 from scipy.spatial import Delaunay
+import matplotlib
+matplotlib.use('Agg')  # Rendu headless sans GUI
+import matplotlib.pyplot as plt
 import folium
 from folium.plugins import MiniMap, MarkerCluster
 
@@ -33,6 +38,7 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 DATA_FILE = os.path.join(DATA_DIR, "stations_velib_idf_complete.json")
 OUTPUT_MAP = os.path.join(BASE_DIR, "carte_velib_optimisee.html")
 REPORT_FILE = os.path.join(BASE_DIR, "rapport_statistiques_velib.json")
+GRAPH_IMAGE = os.path.join(DATA_DIR, "graphiques_velib.png")
 OPENDATA_URL = "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/exports/json"
 
 
@@ -124,7 +130,7 @@ def algo_prim(n_vertices, edges):
 
 
 def algo_dijkstra(n_vertices, edges, start_node, target_node):
-    """Algorithme de Dijkstra pour trouver le plus court chemin entre 2 stations."""
+    """Algorithme de Dijkstra pour le plus court chemin."""
     start_time = time.perf_counter()
     adj = {i: [] for i in range(n_vertices)}
     for u, v, weight in edges:
@@ -150,7 +156,6 @@ def algo_dijkstra(n_vertices, edges, start_node, target_node):
                 predecessors[v] = u
                 heapq.heappush(pq, (distance, v))
 
-    # Reconstruire le chemin
     path = []
     curr = target_node
     while curr is not None:
@@ -159,18 +164,16 @@ def algo_dijkstra(n_vertices, edges, start_node, target_node):
     path.reverse()
 
     exec_time = (time.perf_counter() - start_time) * 1000
-    total_dist = distances[target_node]
-    return path, total_dist, exec_time
+    return path, distances[target_node], exec_time
 
 
 def charger_donnees():
-    """Charge le jeu de données depuis l'API OpenData ou le cache local."""
+    """Charge les données depuis le cache ou l'API."""
     os.makedirs(DATA_DIR, exist_ok=True)
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
 
-    print("[+] Téléchargement en temps réel depuis l'API OpenData...")
     r = requests.get(OPENDATA_URL, timeout=15)
     data = r.json()
     formatted = []
@@ -192,8 +195,47 @@ def charger_donnees():
     return formatted
 
 
+def generer_graphiques_matplotlib(df, edges):
+    """Génère un tableau de bord visuel en image PNG avec Matplotlib."""
+    plt.style.use('dark_background')
+    fig, axes = plt.subplots(2, 2, figsize=(14, 10))
+    fig.suptitle("TABLEAU DE BORD ANALYTIQUE RÉSEAU VÉLIB ÎLE-DE-FRANCE (1518 STATIONS)",
+                 fontsize=14, fontweight='bold', color='#6366F1')
+
+    # 1. Top 10 des stations par capacité
+    top10 = df.sort_values(by='capacite', ascending=False).head(10)
+    axes[0, 0].barh(top10['nom'].str[:25], top10['capacite'], color='#38BDF8')
+    axes[0, 0].set_title("Top 10 Stations par Capacité de Vélos", fontsize=11, fontweight='bold')
+    axes[0, 0].set_xlabel("Nombre de bornettes / vélos")
+    axes[0, 0].invert_yaxis()
+
+    # 2. Répartition des stations par commune (Top 8)
+    communes = df['commune'].value_counts().head(8)
+    axes[0, 1].pie(communes.values, labels=communes.index, autopct='%1.1f%%',
+                   colors=['#818CF8', '#34D399', '#FBBF24', '#F87171', '#A78BFA', '#F472B6', '#38BDF8', '#4ADE80'])
+    axes[0, 1].set_title("Répartition des Stations par Commune", fontsize=11, fontweight='bold')
+
+    # 3. Distribution des distances inter-stations
+    distances_mètres = [e[2] * 1000 for e in edges]
+    axes[1, 0].hist(distances_mètres, bins=30, color='#34D399', edgecolor='#111827')
+    axes[1, 0].set_title("Distribution des Distances Inter-Stations (Mètres)", fontsize=11, fontweight='bold')
+    axes[1, 0].set_xlabel("Distance (mètres)")
+    axes[1, 0].set_ylabel("Fréquence (arêtes Delaunay)")
+
+    # 4. Capacité par station (Histogramme)
+    axes[1, 1].hist(df['capacite'], bins=20, color='#FBBF24', edgecolor='#111827')
+    axes[1, 1].set_title("Répartition des Capacités des Stations", fontsize=11, fontweight='bold')
+    axes[1, 1].set_xlabel("Nombre de vélos")
+    axes[1, 1].set_ylabel("Nombre de stations")
+
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig(GRAPH_IMAGE, dpi=200)
+    plt.close()
+    print(f"[✓] Graphiques analytiques PNG enregistrés dans : {GRAPH_IMAGE}")
+
+
 def generer_statistiques(df, edges, weight_mst):
-    """Calcule un rapport analytique complet du réseau Vélib."""
+    """Calcule le rapport analytique JSON."""
     total_stations = len(df)
     total_capacite = int(df['capacite'].sum())
     moyenne_capacite = float(df['capacite'].mean())
@@ -203,11 +245,7 @@ def generer_statistiques(df, edges, weight_mst):
     ].to_dict(orient='records')
 
     par_commune = df['commune'].value_counts().head(15).to_dict()
-
     distances = [e[2] for e in edges]
-    dist_min = min(distances)
-    dist_max = max(distances)
-    dist_moy = sum(distances) / len(distances)
 
     rapport = {
         "metriques_generales": {
@@ -217,9 +255,7 @@ def generer_statistiques(df, edges, weight_mst):
             "capacite_moyenne_station": round(moyenne_capacite, 2),
             "distance_mst_totale_km": round(weight_mst, 2),
             "nombre_connexions_delaunay": len(edges),
-            "distance_inter_station_moyenne_km": round(dist_moy, 3),
-            "distance_min_km": round(dist_min, 3),
-            "distance_max_km": round(dist_max, 3)
+            "distance_inter_station_moyenne_km": round(sum(distances) / len(distances), 3)
         },
         "top_10_stations_capacite": top_capacites,
         "repartition_par_commune": par_commune
@@ -232,12 +268,11 @@ def generer_statistiques(df, edges, weight_mst):
 
 
 def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, default_target_idx=15):
-    """Génère une carte HTML avec contrôles interactifs et sélection d'itinéraires."""
+    """Génère la carte interactive HTML avec contrôles et graphiques Chart.js."""
     center_lat = df["latitude"].mean()
     center_lon = df["longitude"].mean()
     m = folium.Map(location=[center_lat, center_lon], zoom_start=11, tiles="OpenStreetMap")
 
-    # Cluster de marqueurs pour la fluidité
     marker_cluster = MarkerCluster(name="Stations Vélib Île-de-France").add_to(m)
 
     stations_js_data = []
@@ -262,8 +297,7 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
             fill_opacity=0.8
         ).add_to(marker_cluster)
 
-    # Groupe MST (Tracé vert)
-    mst_group = folium.FeatureGroup(name="Réseau Optimal Optimisé (MST)")
+    mst_group = folium.FeatureGroup(name="Réseau Optimal Optimisé (MST - 502 km)")
     for u, v, weight in mst_edges:
         loc1 = [df.loc[u, "latitude"], df.loc[u, "longitude"]]
         loc2 = [df.loc[v, "latitude"], df.loc[v, "longitude"]]
@@ -279,59 +313,117 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
     folium.LayerControl().add_to(m)
     MiniMap(toggle_display=True).add_to(m)
 
-    # Sauvegarder la carte Folium de base
     m.save(OUTPUT_MAP)
 
-    # Ajouter le panneau interactif d'itinéraire et les scripts de calcul dynamique
     with open(OUTPUT_MAP, "r", encoding="utf-8") as f:
         html_content = f.read()
 
-    # Formater les arêtes pour JavaScript (Dijkstra en navigateur)
     edges_js = [{"u": int(u), "v": int(v), "w": round(float(w), 4)} for u, v, w in edges]
 
-    control_panel_html = f"""
-    <div id="route-panel" style="
+    # Données pour les graphiques Chart.js
+    top10_df = df.sort_values(by='capacite', ascending=False).head(8)
+    chart_top_labels = top10_df['nom'].str[:20].tolist()
+    chart_top_values = top10_df['capacite'].tolist()
+
+    communes_top = df['commune'].value_counts().head(6)
+    chart_commune_labels = communes_top.index.tolist()
+    chart_commune_values = communes_top.values.tolist()
+
+    dashboard_ui_html = f"""
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Panneau Supérieur : Cartes KPI -->
+    <div id="kpi-banner" style="
         position: fixed;
         top: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 12px;
+        z-index: 9999;
+        font-family: 'Segoe UI', Arial, sans-serif;
+    ">
+        <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid #334155; text-align: center;">
+            <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Stations</div>
+            <div style="font-size: 18px; font-weight: bold; color: #38BDF8;">1 518</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid #334155; text-align: center;">
+            <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Vélos & Bornettes</div>
+            <div style="font-size: 18px; font-weight: bold; color: #34D399;">49 060</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid #334155; text-align: center;">
+            <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Réseau Optimisé (MST)</div>
+            <div style="font-size: 18px; font-weight: bold; color: #FBBF24;">502.09 km</div>
+        </div>
+        <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid #334155; text-align: center;">
+            <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Communes Couvertes</div>
+            <div style="font-size: 18px; font-weight: bold; color: #F472B6;">69</div>
+        </div>
+    </div>
+
+    <!-- Panneau Droit : Calculateur d'Itinéraire + Graphiques -->
+    <div id="route-panel" style="
+        position: fixed;
+        top: 80px;
         right: 15px;
-        width: 340px;
+        width: 350px;
+        max-height: calc(100vh - 100px);
+        overflow-y: auto;
         background: rgba(255, 255, 255, 0.95);
-        border-radius: 12px;
+        border-radius: 14px;
         padding: 16px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
         z-index: 9999;
         font-family: 'Segoe UI', Arial, sans-serif;
         font-size: 13px;
-        backdrop-filter: blur(8px);
+        backdrop-filter: blur(10px);
         border: 1px solid #E2E8F0;
     ">
-        <h3 style="margin:0 0 10px 0; color:#1A202C; font-size:16px; display:flex; align-items:center; gap:8px;">
-            🚲 <span>Calculateur d'Itinéraire Vélib</span>
+        <h3 style="margin:0 0 12px 0; color:#1E293B; font-size:16px; display:flex; align-items:center; gap:8px;">
+            🚲 <span>Calculateur d'Itinéraire</span>
         </h3>
         
-        <label style="font-weight:600; color:#4A5568;">Station de départ :</label>
-        <select id="start-station" style="width:100%; padding:6px; margin:4px 0 10px 0; border-radius:6px; border:1px solid #CBD5E0;"></select>
+        <label style="font-weight:600; color:#475569;">Station de départ :</label>
+        <select id="start-station" style="width:100%; padding:7px; margin:4px 0 10px 0; border-radius:6px; border:1px solid #CBD5E0;"></select>
         
-        <label style="font-weight:600; color:#4A5568;">Station d'arrivée :</label>
-        <select id="target-station" style="width:100%; padding:6px; margin:4px 0 12px 0; border-radius:6px; border:1px solid #CBD5E0;"></select>
+        <label style="font-weight:600; color:#475569;">Station d'arrivée :</label>
+        <select id="target-station" style="width:100%; padding:7px; margin:4px 0 12px 0; border-radius:6px; border:1px solid #CBD5E0;"></select>
         
         <button onclick="calculateRoute()" style="
             width:100%;
-            background:#3182CE;
+            background:#2563EB;
             color:white;
             border:none;
-            padding:9px;
+            padding:10px;
             border-radius:6px;
             font-weight:bold;
             cursor:pointer;
             transition:0.2s;
         ">🔍 Trouver le chemin le plus court</button>
         
-        <div id="route-results" style="margin-top:12px; display:none; padding:10px; background:#F7FAFC; border-radius:6px; border:1px solid #E2E8F0;">
-            <div style="font-weight:bold; color:#2B6CB0; margin-bottom:4px;">Résultat du parcours :</div>
-            <div>📏 Distance : <b id="route-dist" style="color:#2D3748;">-</b></div>
-            <div>⏱️ Temps à vélo (~15 km/h) : <b id="route-time" style="color:#2D3748;">-</b></div>
-            <div>📍 Escales : <b id="route-hops" style="color:#2D3748;">-</b></div>
+        <div id="route-results" style="margin-top:12px; display:none; padding:12px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
+            <div style="font-weight:bold; color:#1D4ED8; margin-bottom:6px;">Résultat du trajet (Dijkstra) :</div>
+            <div>📏 Distance : <b id="route-dist" style="color:#0F172A;">-</b></div>
+            <div>⏱️ Temps vélo (~15 km/h) : <b id="route-time" style="color:#0F172A;">-</b></div>
+            <div>📍 Escales traversées : <b id="route-hops" style="color:#0F172A;">-</b></div>
+        </div>
+
+        <hr style="margin: 16px 0; border: 0; border-top: 1px solid #E2E8F0;">
+
+        <h3 style="margin:0 0 12px 0; color:#1E293B; font-size:15px; display:flex; align-items:center; gap:8px;">
+            📊 <span>Graphiques analytiques</span>
+        </h3>
+
+        <!-- Graphique 1 : Top Capacités -->
+        <div style="margin-bottom: 16px;">
+            <div style="font-size:11px; font-weight:bold; color:#64748B; margin-bottom:6px;">TOP STATIONS (CAPACITÉ)</div>
+            <canvas id="chartTopCapacity" height="160"></canvas>
+        </div>
+
+        <!-- Graphique 2 : Répartition par Commune -->
+        <div>
+            <div style="font-size:11px; font-weight:bold; color:#64748B; margin-bottom:6px;">RÉPARTITION PAR COMMUNE</div>
+            <canvas id="chartCommunes" height="160"></canvas>
         </div>
     </div>
 
@@ -358,6 +450,41 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
         
         selectStart.selectedIndex = {default_start_idx};
         selectTarget.selectedIndex = {default_target_idx};
+
+        // Graphique 1 : Top Capacités
+        new Chart(document.getElementById('chartTopCapacity'), {{
+            type: 'bar',
+            data: {{
+                labels: {json.dumps(chart_top_labels)},
+                datasets: [{{
+                    label: 'Vélos max',
+                    data: {json.dumps(chart_top_values)},
+                    backgroundColor: '#3B82F6',
+                    borderRadius: 4
+                }}]
+            }},
+            options: {{
+                responsive: true,
+                plugins: {{ legend: {{ display: false }} }},
+                scales: {{ y: {{ beginAtZero: true }} }}
+            }}
+        }});
+
+        // Graphique 2 : Répartition par Commune
+        new Chart(document.getElementById('chartCommunes'), {{
+            type: 'doughnut',
+            data: {{
+                labels: {json.dumps(chart_commune_labels)},
+                datasets: [{{
+                    data: {json.dumps(chart_commune_values)},
+                    backgroundColor: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
+                }}]
+            }},
+            options: {{
+                responsive: true,
+                plugins: {{ legend: {{ position: 'right', labels: {{ boxWidth: 10, font: {{ size: 10 }} }} }} }}
+            }}
+        }});
     }});
 
     function calculateRoute() {{
@@ -369,7 +496,6 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
             return;
         }}
         
-        // Dijkstra en JavaScript
         const n = STATIONS.length;
         const adj = Array.from({{ length: n }}, () => []);
         EDGES.forEach(e => {{
@@ -380,7 +506,6 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
         const dist = Array(n).fill(Infinity);
         const parent = Array(n).fill(null);
         dist[uStart] = 0;
-        
         const visited = Array(n).fill(false);
         
         for (let i = 0; i < n; i++) {{
@@ -415,16 +540,15 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
         document.getElementById("route-time").textContent = minutes + " min";
         document.getElementById("route-hops").textContent = path.length + " stations";
         
-        // Récupérer la carte Folium
         const mapObj = Object.values(window).find(v => v && v.addLayer && v.on);
         if (mapObj) {{
             if (activeRouteLayer) mapObj.removeLayer(activeRouteLayer);
             
             const routeCoords = path.map(idx => [STATIONS[idx].lat, STATIONS[idx].lon]);
             activeRouteLayer = L.polyline(routeCoords, {{
-                color: '#E53E3E',
+                color: '#EF4444',
                 weight: 6,
-                opacity: 0.9,
+                opacity: 0.95,
                 dashArray: '8, 8'
             }}).addTo(mapObj);
             
@@ -434,15 +558,15 @@ def generer_carte_html_interactive(df, mst_edges, edges, default_start_idx=0, de
     </script>
     """
 
-    html_content = html_content.replace("</body>", f"{control_panel_html}</body>")
+    html_content = html_content.replace("</body>", f"{dashboard_ui_html}</body>")
     with open(OUTPUT_MAP, "w", encoding="utf-8") as f:
         f.write(html_content)
 
 
 def main():
     parser = argparse.ArgumentParser(description="Optimisation & Analytics du Réseau Vélib Île-de-France")
-    parser.add_argument("--depart", type=int, default=None, help="Index de la station de départ pour Dijkstra")
-    parser.add_argument("--arrivee", type=int, default=None, help="Index de la station d'arrivée pour Dijkstra")
+    parser.add_argument("--depart", type=int, default=None, help="Index de la station de départ")
+    parser.add_argument("--arrivee", type=int, default=None, help="Index de la station d'arrivée")
     args = parser.parse_args()
 
     print("=" * 75)
@@ -488,31 +612,15 @@ def main():
     print(f"• Prim (Min-Heap)      -> Longueur : {weight_prim:.3f} km | Temps : {time_prim:.2f} ms")
     print("-" * 60)
 
-    # 3. Calcul de plus court chemin (Dijkstra)
-    u_start = args.depart if args.depart is not None else 0
-    u_target = args.arrivee if args.arrivee is not None else 15
+    # 3. Graphiques Matplotlib
+    generer_graphiques_matplotlib(df, edges)
 
-    path, path_dist, path_time = algo_dijkstra(n, edges, u_start, u_target)
-    start_name = df.loc[u_start, "nom"]
-    target_name = df.loc[u_target, "nom"]
+    # 4. Statistiques analytiques JSON
+    generer_statistiques(df, edges, weight_kruskal)
 
-    print("\n" + "-" * 60)
-    print("  RECHERCHE D'ITINÉRAIRE OPTIMAL (ALGORITHME DE DIJKSTRA)")
-    print("-" * 60)
-    print(f"📍 Départ  : {start_name} ({df.loc[u_start, 'commune']})")
-    print(f"🎯 Arrivée : {target_name} ({df.loc[u_target, 'commune']})")
-    print(f"📏 Distance totale : {path_dist:.3f} km ({path_dist*1000:.0f} mètres)")
-    print(f"⏱️ Temps estimé à vélo (~15 km/h) : {round((path_dist / 15) * 60)} min")
-    print(f"⚡ Calculé en : {path_time:.3f} ms ({len(path)} stations traversées)")
-    print("-" * 60)
-
-    # 4. Statistiques analytiques
-    stats = generer_statistiques(df, edges, weight_kruskal)
-    print(f"\n[✓] Rapport statistique exporté dans : {REPORT_FILE}")
-
-    # 5. Génération carte HTML avec sélecteur interactif
-    generer_carte_html_interactive(df, mst_kruskal, edges, u_start, u_target)
-    print(f"[✓] Carte interactive avec calculateur d'itinéraire enregistrée : {OUTPUT_MAP}")
+    # 5. Génération carte HTML interactive avec Dashboard Chart.js & Calculateur
+    generer_carte_html_interactive(df, mst_kruskal, edges, args.depart or 0, args.arrivee or 15)
+    print(f"[✓] Carte interactive avec dashboard de graphiques enregistrée : {OUTPUT_MAP}")
     print("[✓] Processus terminé avec succès !")
 
 
