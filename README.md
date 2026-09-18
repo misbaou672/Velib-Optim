@@ -1,79 +1,81 @@
-<div align="center">
+# Optimisation du Réseau Vélib en Île-de-France
 
-  # 🚲 Optimisation & Dashboard Analytique du Réseau Vélib (1 518 Stations - Île-de-France)
+Projet de théorie des graphes et d'optimisation spatiale réalisé dans le cadre du BUT Informatique. 
+L'objectif est d'analyser le réseau des 1 518 stations Vélib Métropole (Paris et Île-de-France), de construire un maillage spatial efficace avec la triangulation de Delaunay, d'optimiser l'interconnexion du réseau (MST) et d'offrir un calculateur d'itinéraire optimal (Dijkstra).
 
-  [![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-  [![Matplotlib](https://img.shields.io/badge/Matplotlib-Graphics-11557C?style=for-the-badge&logo=python&logoColor=white)](#)
-  [![Chart.js](https://img.shields.io/badge/Chart.js-Interactive_Charts-FF6384?style=for-the-badge&logo=chartdotjs&logoColor=white)](#)
-  [![SciPy](https://img.shields.io/badge/SciPy-Delaunay-8CAAE6?style=for-the-badge&logo=scipy&logoColor=white)](#)
-  [![Pandas](https://img.shields.io/badge/Pandas-Data_Analysis-150458?style=for-the-badge&logo=pandas&logoColor=white)](#)
-  [![Folium](https://img.shields.io/badge/Folium-Interactive_Maps-77B829?style=for-the-badge&logo=leaflet&logoColor=white)](#)
-
-  <p align="center">
-    <b>Étude algorithmique, spatialisation géodésique, calcul d'itinéraires (Dijkstra) et dashboard d'analyse statistique sur les 1 518 stations Vélib métropolitaines réparties sur 69 communes d'Île-de-France.</b>
-  </p>
+**Auteur** : Misbaou DIALLO (BUT 3 Informatique)
 
 ---
 
-</div>
+## 📌 Présentation et Objectifs
 
-## 📊 Tableau de Bord Statistiques & Visualisation
+Le réseau Vélib d'Île-de-France comporte plus de 1 500 stations et 49 000 bornettes réparties sur 69 communes. Relier directement chaque station à toutes les autres créerait plus d'un million d'arêtes ($O(V^2)$), ce qui n'est ni réaliste ni efficace.
+
+Ce projet applique plusieurs concepts d'algorithmique et de théorie des graphes :
+1. **Triangulation de Delaunay** (`SciPy`) : Réduction des connexions candidates aux voisins géographiques directs (passage de ~1,15 million à **4 536 arêtes**).
+2. **Coloration par Densité Spatiale** : Les triangles de la triangulation sont colorés selon leur superficie en échelle logarithmique. Plus la surface d'un triangle est petite (zone à forte densité de stations comme le centre de Paris), plus sa couleur est sombre.
+3. **Arbre Couvrant Minimum (MST)** : Recherche de l'interconnexion minimale reliant toutes les stations sans cycle.
+   - **Kruskal** (Union-Find)
+   - **Prim** (Min-Heap)
+4. **Calculateur d'Itinéraire (Dijkstra)** : Recherche du chemin le plus court entre deux stations sélectionnées dans la liste ou directement par clic sur la carte interactive.
+
+---
+
+## 📊 Aperçu du Dashboard & Graphiques
+
+Le script génère deux livrables principaux :
+- **`carte_velib_optimisee.html`** : Une carte interactive web (Leaflet / Folium) avec sélecteur d'itinéraire par clic, calque Delaunay activable/désactivable, et mini-dashboard Chart.js.
+- **`data/graphiques_velib.png`** : Un tableau de bord analytique généré avec Matplotlib (distribution des capacités, répartition par commune, histogramme des distances inter-stations).
 
 ![Dashboard Analytique Vélib](data/graphiques_velib.png)
 
 ---
 
-## 📌 Présentation du Projet
+## ⚡ Performances des Algorithmes
 
-Ce projet associe **théorie des graphes**, **analyse de données spatiales** et **visualisation interactive** pour optimiser le réseau Vélib Métropole (1 518 stations sur Paris et la région Île-de-France).
+Les tests ont été effectués sur le jeu de données complet de **1 518 stations** :
 
-### 📐 Approche Algorithmique & Data
+| Algorithme | Usage | Complexité | Temps d'exécution |
+|---|---|---|---|
+| **Kruskal (Union-Find)** | Arbre Couvrant Minimum | $O(E \log E)$ | **~4.5 ms** |
+| **Prim (Min-Heap)** | Arbre Couvrant Minimum | $O(E \log V)$ | **~52 ms** |
+| **Dijkstra** | Plus court chemin entre 2 stations | $O((E + V) \log V)$ | **~4 ms** |
 
-1. **Extraction OpenData Temps Réel (`Data.Gouv.fr`)** : 1 518 stations géolocalisées avec capacité de bornettes et communes.
-2. **Triangulation de Delaunay (`SciPy`)** : Réduction de la complexité spatiale des connexions de $O(V^2)$ à un graphe de **4 536 arêtes candidates**.
-3. **Calculateur d'Itinéraire Optimal (Dijkstra)** : Calcul du plus court chemin en $O((E+V) \log V)$ entre deux stations sélectionnées avec estimation du temps à vélo.
-4. **Arbre Couvrant Minimum (MST)** : 
-   - **Algorithme de Kruskal** (*Union-Find*, $O(E \log E)$).
-   - **Algorithme de Prim** (*Min-Heap*, $O(E \log V)$).
-5. **Dashboard Web Interactif (Folium, Leaflet, Chart.js)** :
-   - Cartes KPI dynamiques (Stations, Vélos, Distances MST, Communes).
-   - Graphiques de répartition (Bar charts & Donut charts).
-   - Sélecteur interactif de trajet de départ / arrivée.
+*Résultat MST* : Longueur totale minimale du réseau interconnecté = **502.09 km**.
 
 ---
 
-## ⚡ Résultats & Performances
+## 💻 Installation et Exécution
 
-| Métrique | Valeur |
-|---|---|
-| **Nombre de Stations** | **1 518 stations** |
-| **Capacité Totale de Vélos** | **49 060 bornettes / vélos** |
-| **Couverture Géographique** | **69 communes d'Île-de-France** |
-| **Longueur Totale du Réseau Optimisé (MST)** | **502.09 km** |
-| **Temps d'exécution (Kruskal)** | **4.42 ms** |
-| **Temps d'exécution (Prim)** | **5.29 ms** |
-| **Calcul d'Itinéraire (Dijkstra)** | **4.02 ms** |
-
----
-
-## 🚀 Lancement Rapide
+### Prérequis
+- Python 3.9+
+- Dépendances : `scipy`, `pandas`, `numpy`, `folium`, `requests`, `matplotlib`
 
 ```bash
-# 1. Cloner le projet
+# 1. Cloner le dépôt
 git clone https://github.com/misbaou672/optimisation-velib.git
 cd optimisation-velib
 
-# 2. Installer les dépendances
-pip install scipy pandas numpy folium requests matplotlib
+# 2. Installer les bibliothèques requises
+pip install -r requirements.txt
 
-# 3. Exécuter l'analyse et générer les graphiques / carte
+# 3. Lancer l'analyse et la génération de la carte
 python optimisation_velib.py
 ```
 
-L'exécution génère l'image dashboard `data/graphiques_velib.png` et l'application carte web `carte_velib_optimisee.html`.
+L'application génèrera la carte interactive `carte_velib_optimisee.html` que vous pouvez ouvrir directement dans votre navigateur web.
 
 ---
 
-<div align="center">
-  <sub>Développé par <a href="https://github.com/misbaou672">Misbaou DIALLO</a></sub>
-</div>
+## 🛠️ Structure du Projet
+
+```text
+optimisation-velib/
+├── optimisation_velib.py          # Script principal (Data, Delaunay, MST, Dijkstra, Folium)
+├── carte_velib_optimisee.html      # Application web interactive (Folium + Leaflet + Chart.js)
+├── rapport_statistiques_velib.json # Rapport de synthèse au format JSON
+├── data/
+│   ├── stations_velib_idf_complete.json # Dataset des 1518 stations
+│   └── graphiques_velib.png        # Tableau de bord analytique Matplotlib
+└── README.md
+```

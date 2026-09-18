@@ -1,19 +1,13 @@
 """
-==============================================================================
-Optimisation & Analytics du Réseau Vélib Métropole (1 518 Stations - Île-de-France)
-Auteur : Misbaou DIALLO (BUT 3 Informatique)
-==============================================================================
+Optimisation et analyse spatiale du réseau Vélib en Île-de-France (1 518 stations).
 
-Fonctionnalités avancées :
-  1. Triangulation de Delaunay (SciPy) avec Surfaces Colorées selon la Densité/Superficie :
-     - Les triangles les plus PETITS (haute densité urbaine) ont une couleur sombre/intense.
-     - Les triangles les plus GRANDS ont une teinte plus claire et transparente.
-  2. Algorithmes MST : Kruskal (Union-Find) & Prim (Min-Heap) pour le réseau minimal.
-  3. Recherche d'Itinéraire Optimal (Dijkstra) :
-     - Par Sélection dans le Menu Déroulant
-     - PAR CLIC DIRECT SUR DEUX STATIONS SUR LA CARTE INTERACTIVE
-  4. Graphiques & Analytics Visuels (Matplotlib + Chart.js).
-  5. Application Web Interactive HTML (Folium + Leaflet + Toggle Delaunay + Calculateur + Chart.js).
+Projet de théorie des graphes et d'optimisation :
+- Triangulation de Delaunay avec coloration selon la surface (densité spatiale)
+- Algorithmes d'Arbre Couvrant Minimum (Kruskal & Prim)
+- Recherche de plus court chemin (Dijkstra)
+- Visualisation interactive avec Folium, Leaflet et Chart.js
+
+Auteur : Misbaou DIALLO (BUT 3 Informatique)
 """
 
 import argparse
@@ -33,7 +27,6 @@ import matplotlib.pyplot as plt
 import folium
 from folium.plugins import MiniMap, MarkerCluster
 
-# Chemins des fichiers
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "data")
 DATA_FILE = os.path.join(DATA_DIR, "stations_velib_idf_complete.json")
@@ -44,8 +37,8 @@ OPENDATA_URL = "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/veli
 
 
 def haversine_distance(lat1, lon1, lat2, lon2):
-    """Calcule la distance géodésique en kilomètres entre deux points GPS (Lat, Lon)."""
-    R = 6371.0  # Rayon moyen de la Terre en km
+    """Calcule la distance en kilomètres entre deux points GPS."""
+    R = 6371.0
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = (math.sin(dlat / 2) ** 2 +
@@ -56,57 +49,53 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 
 def calculer_surface_triangle(p1, p2, p3):
-    """Calcule l'aire approximative en km² d'un triangle à partir de 3 points GPS (lon, lat)."""
+    """Calcule la superficie approximative en km² d'un triangle (lon, lat)."""
     x1, y1 = p1
     x2, y2 = p2
     x3, y3 = p3
-    # Surface en deg²
     deg_area = 0.5 * abs(x1 * (y2 - y3) + x2 * (y3 - y1) + x3 * (y1 - y2))
-    # Conversion approximative en km² pour la latitude de Paris (~48.85°)
-    # 1° lat ≈ 111 km, 1° lon ≈ 73 km à Paris => 1 deg² ≈ 8103 km²
-    km2_area = deg_area * 8103.0
-    return km2_area
+    # 1 deg² ≈ 8103 km² à la latitude de Paris (~48.85°)
+    return deg_area * 8103.0
 
 
 def obtenir_couleur_delaunay(area, min_area, max_area):
     """
-    Retourne une couleur et une opacité basées sur la surface du triangle (échelle logarithmique) :
-    - Plus PETITE surface (très dense) -> Couleur très SOMBRE & OPAQUE (#0B0F19 / Indigo nuit)
-    - Plus GRANDE surface (peu dense)  -> Couleur CLAIRE & TRANSLUCIDE (#E0E7FF / Lavender translucide)
+    Retourne la couleur et l'opacité selon la superficie du triangle (échelle logarithmique) :
+    - Petite surface (densité forte, centre-ville) -> Couleur sombre & opaque
+    - Grande surface (densité faible, périphérie) -> Couleur claire & translucide
     """
     safe_area = max(area, 1e-7)
     safe_min = max(min_area, 1e-7)
     safe_max = max(max_area, 1e-7)
-    
+
     log_area = math.log10(safe_area)
     log_min = math.log10(safe_min)
     log_max = math.log10(safe_max)
-    
+
     if log_max == log_min:
         norm = 0.5
     else:
         norm = (log_area - log_min) / (log_max - log_min)
         norm = max(0.0, min(1.0, norm))
-    
-    # Échelle continue de sombre (petite surface) à clair (grande surface)
+
     if norm < 0.15:
-        return "#0F172A", 0.80  # Noir Indigo Très Sombre (Densité maximale - Paris Centre)
+        return "#0F172A", 0.80
     elif norm < 0.30:
-        return "#1E1B4B", 0.70  # Indigo Nuit Sombre
+        return "#1E1B4B", 0.70
     elif norm < 0.45:
-        return "#312E81", 0.60  # Indigo Foncé
+        return "#312E81", 0.60
     elif norm < 0.60:
-        return "#4338CA", 0.50  # Violet Indigo Moyen
+        return "#4338CA", 0.50
     elif norm < 0.75:
-        return "#6D28D9", 0.40  # Violet Clair
+        return "#6D28D9", 0.40
     elif norm < 0.88:
-        return "#A855F7", 0.28  # Magenta / Violet Pâle
+        return "#A855F7", 0.28
     else:
-        return "#E0E7FF", 0.18  # Lavender Translucide Très Clair (Grande surface / Banlieue éloignée)
+        return "#E0E7FF", 0.18
 
 
 class DisjointSet:
-    """Structure Union-Find pour l'Algorithme de Kruskal."""
+    """Structure Union-Find pour l'algorithme de Kruskal."""
 
     def __init__(self, n):
         self.parent = list(range(n))
@@ -181,7 +170,7 @@ def algo_prim(n_vertices, edges):
 
 
 def algo_dijkstra(n_vertices, edges, start_node, target_node):
-    """Algorithme de Dijkstra pour le plus court chemin."""
+    """Algorithme de Dijkstra pour trouver le plus court chemin."""
     start_time = time.perf_counter()
     adj = {i: [] for i in range(n_vertices)}
     for u, v, weight in edges:
@@ -219,12 +208,13 @@ def algo_dijkstra(n_vertices, edges, start_node, target_node):
 
 
 def charger_donnees():
-    """Charge les données depuis le cache ou l'API."""
+    """Charge les données réelles des stations depuis le cache local ou l'API OpenData."""
     os.makedirs(DATA_DIR, exist_ok=True)
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
 
+    print("Téléchargement des stations depuis l'API OpenData Paris...")
     r = requests.get(OPENDATA_URL, timeout=15)
     data = r.json()
     formatted = []
@@ -247,36 +237,36 @@ def charger_donnees():
 
 
 def generer_graphiques_matplotlib(df, edges):
-    """Génère un tableau de bord visuel en image PNG avec Matplotlib."""
+    """Génère le tableau de bord analytique en PNG avec Matplotlib."""
     plt.style.use('dark_background')
     fig, axes = plt.subplots(2, 2, figsize=(14, 10))
-    fig.suptitle("TABLEAU DE BORD ANALYTIQUE RÉSEAU VÉLIB ÎLE-DE-FRANCE (1518 STATIONS)",
+    fig.suptitle("Analyse du Réseau Vélib Île-de-France (1 518 stations)",
                  fontsize=14, fontweight='bold', color='#6366F1')
 
-    # 1. Top 10 des stations par capacité
+    # Top 10 par capacité
     top10 = df.sort_values(by='capacite', ascending=False).head(10)
     axes[0, 0].barh(top10['nom'].str[:25], top10['capacite'], color='#38BDF8')
-    axes[0, 0].set_title("Top 10 Stations par Capacité de Vélos", fontsize=11, fontweight='bold')
-    axes[0, 0].set_xlabel("Nombre de bornettes / vélos")
+    axes[0, 0].set_title("Top 10 des stations par capacité", fontsize=11, fontweight='bold')
+    axes[0, 0].set_xlabel("Capacité (vélos)")
     axes[0, 0].invert_yaxis()
 
-    # 2. Répartition par commune
+    # Répartition par commune
     communes = df['commune'].value_counts().head(8)
     axes[0, 1].pie(communes.values, labels=communes.index, autopct='%1.1f%%',
                    colors=['#818CF8', '#34D399', '#FBBF24', '#F87171', '#A78BFA', '#F472B6', '#38BDF8', '#4ADE80'])
-    axes[0, 1].set_title("Répartition des Stations par Commune", fontsize=11, fontweight='bold')
+    axes[0, 1].set_title("Répartition des stations par commune", fontsize=11, fontweight='bold')
 
-    # 3. Distribution des distances
-    distances_mètres = [e[2] * 1000 for e in edges]
-    axes[1, 0].hist(distances_mètres, bins=30, color='#34D399', edgecolor='#111827')
-    axes[1, 0].set_title("Distribution des Distances Inter-Stations (Mètres)", fontsize=11, fontweight='bold')
+    # Distribution des distances
+    distances_m = [e[2] * 1000 for e in edges]
+    axes[1, 0].hist(distances_m, bins=30, color='#34D399', edgecolor='#111827')
+    axes[1, 0].set_title("Distances inter-stations (Delaunay)", fontsize=11, fontweight='bold')
     axes[1, 0].set_xlabel("Distance (mètres)")
-    axes[1, 0].set_ylabel("Fréquence (arêtes Delaunay)")
+    axes[1, 0].set_ylabel("Nombre d'arêtes")
 
-    # 4. Capacité par station
+    # Capacités
     axes[1, 1].hist(df['capacite'], bins=20, color='#FBBF24', edgecolor='#111827')
-    axes[1, 1].set_title("Répartition des Capacités des Stations", fontsize=11, fontweight='bold')
-    axes[1, 1].set_xlabel("Nombre de vélos")
+    axes[1, 1].set_title("Distribution des capacités des stations", fontsize=11, fontweight='bold')
+    axes[1, 1].set_xlabel("Nombre de bornettes")
     axes[1, 1].set_ylabel("Nombre de stations")
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
@@ -285,7 +275,7 @@ def generer_graphiques_matplotlib(df, edges):
 
 
 def generer_statistiques(df, edges, weight_mst):
-    """Calcule le rapport analytique JSON."""
+    """Exporte les métriques du réseau au format JSON."""
     total_stations = len(df)
     total_capacite = int(df['capacite'].sum())
     moyenne_capacite = float(df['capacite'].mean())
@@ -318,12 +308,12 @@ def generer_statistiques(df, edges, weight_mst):
 
 
 def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=0, default_target_idx=15):
-    """Génère la carte HTML avec Triangles Delaunay COLORÉS PAR SURFACE + Clic 2 stations + Chart.js."""
+    """Génère la carte web interactive Folium / Leaflet."""
     center_lat = df["latitude"].mean()
     center_lon = df["longitude"].mean()
     m = folium.Map(location=[center_lat, center_lon], zoom_start=11, tiles="OpenStreetMap")
 
-    marker_cluster = MarkerCluster(name="Stations Vélib Île-de-France").add_to(m)
+    marker_cluster = MarkerCluster(name="Stations Vélib (1 518)").add_to(m)
 
     stations_js_data = []
     coords_list = []
@@ -346,7 +336,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
             <span>🚲 Capacité : <b>{row['capacite']}</b> vélos</span><br><br>
             <button onclick="selectStationByClick({idx})" style="
                 width:100%; background:#2563EB; color:white; border:none; padding:6px; border-radius:4px; font-weight:bold; cursor:pointer;
-            ">🎯 Sélectionner pour trajet</button>
+            ">Sélectionner pour itinéraire</button>
         </div>
         """
         folium.CircleMarker(
@@ -359,7 +349,6 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
             fill_opacity=0.8
         ).add_to(marker_cluster)
 
-    # 1. Calculer les surfaces de tous les triangles de Delaunay
     triangle_areas = []
     triangle_data = []
     for simplex in tri.simplices:
@@ -373,31 +362,26 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     min_area = min(triangle_areas)
     max_area = max(triangle_areas)
 
-    # Groupe 1 : Surface des Triangles Delaunay Colorés par Densité / Taille
-    delaunay_group = folium.FeatureGroup(name="🌐 Maillage Delaunay Coloré par Densité (Surface)")
+    delaunay_group = folium.FeatureGroup(name="Maillage Delaunay (Coloration par superficie)")
     for simplex, area in triangle_data:
         p1 = [df.loc[simplex[0], "latitude"], df.loc[simplex[0], "longitude"]]
         p2 = [df.loc[simplex[1], "latitude"], df.loc[simplex[1], "longitude"]]
         p3 = [df.loc[simplex[2], "latitude"], df.loc[simplex[2], "longitude"]]
 
         color, opacity = obtenir_couleur_delaunay(area, min_area, max_area)
-        if area < 1.0:
-            area_str = f"{area * 100:.1f} ha"
-        else:
-            area_str = f"{area:.2f} km²"
+        area_str = f"{area * 100:.1f} ha" if area < 1.0 else f"{area:.2f} km²"
 
         folium.Polygon(
             locations=[p1, p2, p3],
-            color="#4C1D95",  # Contour violet très sombre
+            color="#4C1D95",
             weight=1.0,
             fill=True,
             fill_color=color,
             fill_opacity=opacity,
-            tooltip=f"Triangle Delaunay<br>📐 Surface : <b>{area_str}</b><br>🎨 Couleur : <i>{'Sombre (Superficie réduite / Denser)' if opacity > 0.5 else 'Claire (Grande superficie)'}</i>"
+            tooltip=f"Triangle Delaunay<br>Surface : <b>{area_str}</b><br>Couleur : {'Sombre (superficie réduite)' if opacity > 0.5 else 'Claire (grande superficie)'}"
         ).add_to(delaunay_group)
 
-    # Groupe 2 : MST Vert Émeraude
-    mst_group = folium.FeatureGroup(name="🟢 Réseau Optimal Optimisé (MST - 502 km)")
+    mst_group = folium.FeatureGroup(name="Réseau Optimal (MST - 502 km)")
     for u, v, weight in mst_edges:
         loc1 = [df.loc[u, "latitude"], df.loc[u, "longitude"]]
         loc2 = [df.loc[v, "latitude"], df.loc[v, "longitude"]]
@@ -440,16 +424,16 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     }}
     </style>
 
-    <!-- KPI Banner -->
+    <!-- Bandeau KPI -->
     <div id="kpi-banner" style="
-        position: fixed; top: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 9999; font-family: 'Segoe UI', Arial, sans-serif;
+        position: fixed; top: 15px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 9999; font-family: system-ui, -apple-system, sans-serif;
     ">
         <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid #334155; text-align: center;">
             <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Stations</div>
             <div style="font-size: 18px; font-weight: bold; color: #38BDF8;">1 518</div>
         </div>
         <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid #334155; text-align: center;">
-            <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Vélos & Bornettes</div>
+            <div style="font-size: 10px; color: #94A3B8; text-transform: uppercase; font-weight: bold;">Bornettes & Vélos</div>
             <div style="font-size: 18px; font-weight: bold; color: #34D399;">49 060</div>
         </div>
         <div style="background: rgba(15, 23, 42, 0.9); color: white; padding: 8px 16px; border-radius: 8px; backdrop-filter: blur(8px); border: 1px solid #334155; text-align: center;">
@@ -462,52 +446,48 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         </div>
     </div>
 
-    <!-- Side Panel -->
+    <!-- Panneau de contrôle latéral -->
     <div id="route-panel" style="
-        position: fixed; top: 80px; right: 15px; width: 350px; max-height: calc(100vh - 100px); overflow-y: auto; background: rgba(255, 255, 255, 0.95); border-radius: 14px; padding: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.2); z-index: 9999; font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; backdrop-filter: blur(10px); border: 1px solid #E2E8F0;
+        position: fixed; top: 80px; right: 15px; width: 340px; max-height: calc(100vh - 100px); overflow-y: auto; background: rgba(255, 255, 255, 0.96); border-radius: 12px; padding: 16px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); z-index: 9999; font-family: system-ui, -apple-system, sans-serif; font-size: 13px; backdrop-filter: blur(8px); border: 1px solid #E2E8F0;
     ">
-        <h3 style="margin:0 0 8px 0; color:#1E293B; font-size:16px; display:flex; align-items:center; gap:8px;">
-            🚲 <span>Calculateur d'Itinéraire</span>
-        </h3>
+        <h3 style="margin:0 0 8px 0; color:#1E293B; font-size:15px;">Calculateur d'Itinéraire (Dijkstra)</h3>
         
         <p style="margin:0 0 10px 0; color:#64748B; font-size:11px;">
-            💡 <b>Astuce :</b> Cliquez directement sur 2 stations de la carte pour sélectionner votre trajet !
+            Sélectionnez deux stations dans les listes ci-dessous ou directement en cliquant sur la carte.
         </p>
         
-        <label style="font-weight:600; color:#475569;">Départ (Clic 1) :</label>
+        <label style="font-weight:600; color:#475569;">Station de départ :</label>
         <select id="start-station" style="width:100%; padding:7px; margin:4px 0 10px 0; border-radius:6px; border:1px solid #CBD5E0;"></select>
         
-        <label style="font-weight:600; color:#475569;">Arrivée (Clic 2) :</label>
+        <label style="font-weight:600; color:#475569;">Station d'arrivée :</label>
         <select id="target-station" style="width:100%; padding:7px; margin:4px 0 12px 0; border-radius:6px; border:1px solid #CBD5E0;"></select>
         
         <button onclick="calculateRoute()" style="
-            width:100%; background:#2563EB; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold; cursor:pointer; transition:0.2s; margin-bottom:8px;
-        ">🔍 Calculer le chemin le plus court</button>
+            width:100%; background:#2563EB; color:white; border:none; padding:9px; border-radius:6px; font-weight:bold; cursor:pointer; margin-bottom:8px;
+        ">Calculer le trajet le plus court</button>
         
         <button id="toggle-delaunay-btn" onclick="toggleDelaunayLayer()" style="
-            width:100%; background:#7B1FA2; color:white; border:none; padding:9px; border-radius:6px; font-weight:bold; cursor:pointer; transition:0.2s;
-        ">🌐 Basculer Triangulation Delaunay (On/Off)</button>
+            width:100%; background:#6B21A8; color:white; border:none; padding:8px; border-radius:6px; font-weight:600; cursor:pointer;
+        ">Afficher / Masquer la Triangulation Delaunay</button>
 
         <div id="route-results" style="margin-top:12px; display:none; padding:12px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
-            <div style="font-weight:bold; color:#1D4ED8; margin-bottom:6px;">Résultat du trajet (Dijkstra) :</div>
-            <div>📏 Distance : <b id="route-dist" style="color:#0F172A;">-</b></div>
-            <div>⏱️ Temps vélo (~15 km/h) : <b id="route-time" style="color:#0F172A;">-</b></div>
-            <div>📍 Stations traversées : <b id="route-hops" style="color:#0F172A;">-</b></div>
+            <div style="font-weight:bold; color:#1D4ED8; margin-bottom:6px;">Résultats du trajet :</div>
+            <div>Distance : <b id="route-dist" style="color:#0F172A;">-</b></div>
+            <div>Temps estimé (15 km/h) : <b id="route-time" style="color:#0F172A;">-</b></div>
+            <div>Stations traversées : <b id="route-hops" style="color:#0F172A;">-</b></div>
         </div>
 
         <hr style="margin: 16px 0; border: 0; border-top: 1px solid #E2E8F0;">
 
-        <h3 style="margin:0 0 12px 0; color:#1E293B; font-size:15px; display:flex; align-items:center; gap:8px;">
-            📊 <span>Graphiques Analytiques</span>
-        </h3>
+        <h3 style="margin:0 0 12px 0; color:#1E293B; font-size:14px;">Statistiques du réseau</h3>
 
         <div style="margin-bottom: 16px;">
-            <div style="font-size:11px; font-weight:bold; color:#64748B; margin-bottom:6px;">TOP STATIONS (CAPACITÉ)</div>
+            <div style="font-size:11px; font-weight:bold; color:#64748B; margin-bottom:6px;">Top stations par capacité</div>
             <canvas id="chartTopCapacity" height="160"></canvas>
         </div>
 
         <div>
-            <div style="font-size:11px; font-weight:bold; color:#64748B; margin-bottom:6px;">RÉPARTITION PAR COMMUNE</div>
+            <div style="font-size:11px; font-weight:bold; color:#64748B; margin-bottom:6px;">Répartition par commune</div>
             <canvas id="chartCommunes" height="160"></canvas>
         </div>
     </div>
@@ -543,7 +523,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
             data: {{
                 labels: {json.dumps(chart_top_labels)},
                 datasets: [{{
-                    label: 'Vélos max',
+                    label: 'Capacité',
                     data: {json.dumps(chart_top_values)},
                     backgroundColor: '#3B82F6',
                     borderRadius: 4
@@ -598,7 +578,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         if (clickSelectionStep === 0 || clickSelectionStep === 2) {{
             selectStart.value = stationIdx;
             clickSelectionStep = 1;
-            alert("✅ Station de DÉPART sélectionnée : " + STATIONS[stationIdx].nom + "\\n👉 Cliquez maintenant sur la station d'ARRIVÉE !");
+            console.log("Station de départ : " + STATIONS[stationIdx].nom);
         }} else if (clickSelectionStep === 1) {{
             selectTarget.value = stationIdx;
             clickSelectionStep = 2;
@@ -611,7 +591,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         const uTarget = parseInt(document.getElementById("target-station").value);
         
         if (uStart === uTarget) {{
-            alert("Veuillez sélectionner deux stations différentes.");
+            alert("Veuillez choisir deux stations différentes.");
             return;
         }}
         
@@ -655,7 +635,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
         const minutes = Math.round((totalDistKm / 15) * 60);
         
         document.getElementById("route-results").style.display = "block";
-        document.getElementById("route-dist").textContent = totalDistKm.toFixed(2) + " km (" + Math.round(totalDistKm*1000) + " m)";
+        document.getElementById("route-dist").textContent = totalDistKm.toFixed(2) + " km";
         document.getElementById("route-time").textContent = minutes + " min";
         document.getElementById("route-hops").textContent = path.length + " stations";
         
@@ -666,9 +646,9 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
             const routeCoords = path.map(idx => [STATIONS[idx].lat, STATIONS[idx].lon]);
             activeRouteLayer = L.polyline(routeCoords, {{
                 color: '#EF4444',
-                weight: 6,
-                opacity: 0.95,
-                dashArray: '8, 8'
+                weight: 5,
+                opacity: 0.9,
+                dashArray: '6, 6'
             }}).addTo(mapObj);
             
             mapObj.fitBounds(activeRouteLayer.getBounds(), {{ padding: [50, 50] }});
@@ -683,22 +663,17 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Optimisation & Analytics du Réseau Vélib Île-de-France")
+    parser = argparse.ArgumentParser(description="Optimisation et analyse du réseau Vélib Île-de-France")
     parser.add_argument("--depart", type=int, default=None, help="Index de la station de départ")
     parser.add_argument("--arrivee", type=int, default=None, help="Index de la station d'arrivée")
     args = parser.parse_args()
 
-    print("=" * 75)
-    print("  OPTIMISATION & ANALYTICS RÉSEAU VÉLIB MÉTROPOLITAIN (1 518 STATIONS)")
-    print("  Auteur : Misbaou DIALLO (BUT 3 Informatique)")
-    print("=" * 75)
-
+    print("Chargement des données Vélib...")
     stations = charger_donnees()
     df = pd.DataFrame(stations)
     n = len(df)
 
-    print(f"\n[✓] {n} stations Vélib chargées (Paris & Île-de-France).")
-    print(f"[✓] Couverture géographique : {df['commune'].nunique()} communes d'Île-de-France.")
+    print(f"-> {n} stations chargées sur {df['commune'].nunique()} communes d'Île-de-France.")
 
     # 1. Triangulation de Delaunay
     coords = df[["longitude", "latitude"]].values
@@ -720,27 +695,25 @@ def main():
         dist = haversine_distance(lat1, lon1, lat2, lon2)
         edges.append((u, v, dist))
 
+    print(f"-> Graphe Delaunay généré : {len(edges)} arêtes candidates.")
+
     # 2. Algorithmes MST
     mst_kruskal, weight_kruskal, time_kruskal = algo_kruskal(n, edges)
     mst_prim, weight_prim, time_prim = algo_prim(n, edges)
 
-    print("\n" + "-" * 60)
-    print("  RÉSULTATS DES ALGORITHMES MST (ARBRE COUVRANT MINIMUM)")
-    print("-" * 60)
-    print(f"• Kruskal (Union-Find) -> Longueur : {weight_kruskal:.3f} km | Temps : {time_kruskal:.2f} ms")
-    print(f"• Prim (Min-Heap)      -> Longueur : {weight_prim:.3f} km | Temps : {time_prim:.2f} ms")
-    print("-" * 60)
+    print("\n--- Performances MST ---")
+    print(f"Kruskal (Union-Find) : {weight_kruskal:.2f} km (exécuté en {time_kruskal:.2f} ms)")
+    print(f"Prim (Min-Heap)      : {weight_prim:.2f} km (exécuté en {time_prim:.2f} ms)")
 
-    # 3. Graphiques Matplotlib
+    # 3. Visualisation Matplotlib
     generer_graphiques_matplotlib(df, edges)
 
-    # 4. Statistiques analytiques JSON
+    # 4. Statistiques JSON
     generer_statistiques(df, edges, weight_kruskal)
 
-    # 5. Carte HTML interactive avec Triangles Delaunay Colorés par Surface / Densité
+    # 5. Carte HTML Folium
     generer_carte_html_interactive(df, tri, mst_kruskal, edges, args.depart or 0, args.arrivee or 15)
-    print(f"[✓] Carte interactive mise à jour (Triangles Delaunay Colorés par Surface/Densité) : {OUTPUT_MAP}")
-    print("[✓] Processus terminé avec succès !")
+    print(f"\nCarte interactive générée avec succès : {OUTPUT_MAP}")
 
 
 if __name__ == "__main__":
