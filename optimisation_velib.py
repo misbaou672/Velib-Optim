@@ -413,6 +413,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     with open(OUTPUT_MAP, "r", encoding="utf-8") as f:
         html_content = f.read()
 
+    delaunay_var_name = delaunay_group.get_name()
     edges_js = [{"u": int(u), "v": int(v), "w": round(float(w), 4)} for u, v, w in edges]
 
     top10_df = df.sort_values(by='capacite', ascending=False).head(8)
@@ -671,7 +672,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     const EDGES = {json.dumps(edges_js)};
     let activeRouteLayer = null;
     let clickSelectionStep = 0;
-    let delaunayLayerRef = null;
+    let delaunayLayerRef = {delaunay_var_name};
 
     document.addEventListener("DOMContentLoaded", function() {{
         const selectStart = document.getElementById("start-station");
@@ -736,29 +737,16 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, default_start_idx=
     }}
 
     function toggleDelaunayLayer() {{
-        const mapObj = Object.values(window).find(v => v && v.addLayer && v.eachLayer);
-        if (!mapObj) return;
+        const mapObj = Object.values(window).find(v => v && v.addLayer && v.removeLayer && v.hasLayer);
+        if (!mapObj || !delaunayLayerRef) return;
 
-        if (!delaunayLayerRef) {{
-            mapObj.eachLayer(layer => {{
-                if (layer.options && (
-                    (layer.options.name && layer.options.name.toLowerCase().includes("delaunay")) ||
-                    (layer.options.overlayName && layer.options.overlayName.toLowerCase().includes("delaunay"))
-                )) {{
-                    delaunayLayerRef = layer;
-                }}
-            }});
-        }}
-
-        if (delaunayLayerRef) {{
-            const btn = document.getElementById("toggle-delaunay-btn");
-            if (mapObj.hasLayer(delaunayLayerRef)) {{
-                mapObj.removeLayer(delaunayLayerRef);
-                btn.style.background = "#64748B";
-            }} else {{
-                mapObj.addLayer(delaunayLayerRef);
-                btn.style.background = "#6B21A8";
-            }}
+        const btn = document.getElementById("toggle-delaunay-btn");
+        if (mapObj.hasLayer(delaunayLayerRef)) {{
+            mapObj.removeLayer(delaunayLayerRef);
+            if (btn) btn.style.opacity = "0.4";
+        }} else {{
+            mapObj.addLayer(delaunayLayerRef);
+            if (btn) btn.style.opacity = "1.0";
         }}
     }}
 
