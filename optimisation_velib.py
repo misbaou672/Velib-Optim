@@ -5,8 +5,8 @@ Projet de théorie des graphes et d'optimisation :
 - Connexion en direct à l'API OpenData Paris (Mise à jour en temps réel)
 - Triangulation de Delaunay avec coloration selon la surface (densité spatiale)
 - Algorithmes d'Arbre Couvrant Minimum (Kruskal & Prim)
-- Recherche de plus court chemin (Dijkstra)
-- Cockpit Data & Analytics Spatiales complet (HeatMap, Filtrage Live, Comparateur, Chart.js)
+- Recherche de plus court chemin (Dijkstra avec station étape / Waypoint)
+- Cockpit Data & Analytics Spatiales complet (HeatMap, Filtrage Dynamique, Comparateur, Santé Réseau)
 
 Auteur : Misbaou DIALLO (BUT 3 Informatique)
 """
@@ -260,6 +260,9 @@ def generer_statistiques(df, edges, weight_mst, time_kruskal, time_prim):
     total_bornettes_libres = int(df['numdocksavailable'].sum()) if 'numdocksavailable' in df else 0
     total_ebikes = int(df['ebike'].sum()) if 'ebike' in df else 0
 
+    stations_vides = int((df['numbikesavailable'] == 0).sum()) if 'numbikesavailable' in df else 0
+    stations_saturees = int((df['numdocksavailable'] == 0).sum()) if 'numdocksavailable' in df else 0
+
     top_capacites = df.sort_values(by='capacite', ascending=False).head(10)[
         ['nom', 'commune', 'capacite', 'numbikesavailable']
     ].to_dict(orient='records')
@@ -275,6 +278,8 @@ def generer_statistiques(df, edges, weight_mst, time_kruskal, time_prim):
             "total_velos_electriques": total_ebikes,
             "total_bornettes_libres_temps_reel": total_bornettes_libres,
             "capacite_totale_velos": total_capacite,
+            "stations_penurie_vides": stations_vides,
+            "stations_saturees_pleines": stations_saturees,
             "distance_mst_totale_km": round(weight_mst, 2),
             "nombre_connexions_delaunay": len(edges),
             "distance_inter_station_moyenne_km": round(sum(distances) / len(distances), 3),
@@ -302,7 +307,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         prefer_canvas=True
     )
 
-    # Calcul dynamique des métriques Cockpit
+    # Calcul dynamique des métriques Cockpit & Santé Réseau
     total_stations = len(df)
     total_capacite = int(df['capacite'].sum()) if 'capacite' in df else 0
     total_velos_dispo = int(df['numbikesavailable'].sum()) if 'numbikesavailable' in df else 0
@@ -310,6 +315,10 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     total_bornettes_libres = int(df['numdocksavailable'].sum()) if 'numdocksavailable' in df else 0
     total_communes = df['commune'].nunique()
     weight_mst_sum = round(sum(w for _, _, w in mst_edges), 1)
+
+    stations_vides_count = int((df['numbikesavailable'] == 0).sum()) if 'numbikesavailable' in df else 0
+    stations_saturees_count = int((df['numdocksavailable'] == 0).sum()) if 'numdocksavailable' in df else 0
+    taux_remplissage_pct = round((total_velos_dispo / max(1, total_capacite)) * 100, 1)
 
     # Add Live Availability Heatmap Layer
     heat_data = [[row['latitude'], row['longitude'], max(1, int(row.get('numbikesavailable', 0)))] for _, row in df.iterrows()]
@@ -374,14 +383,24 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             </button>
         </div>
         """
+
+        # Color indicator based on availability status
+        marker_color = "#3182CE"
+        if bikes_dispo == 0:
+            marker_color = "#E53E3E"  # Red for empty alert
+        elif ebikes > 5:
+            marker_color = "#805AD5"  # Purple for high e-bike availability
+        elif bikes_dispo > 10:
+            marker_color = "#38A169"  # Green for high bike availability
+
         folium.CircleMarker(
             location=[row["latitude"], row["longitude"]],
             radius=5,
             popup=folium.Popup(popup_html, max_width=260),
-            color="#2B6CB0",
+            color=marker_color,
             fill=True,
-            fill_color="#3182CE",
-            fill_opacity=0.8
+            fill_color=marker_color,
+            fill_opacity=0.85
         ).add_to(marker_cluster)
 
     triangle_areas = []
@@ -568,8 +587,8 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         background: transparent;
         border: none;
         color: #94A3B8;
-        padding: 6px 12px;
-        font-size: 11px;
+        padding: 6px 10px;
+        font-size: 10px;
         font-weight: 700;
         cursor: pointer;
         border-bottom: 2px solid transparent;
@@ -658,6 +677,11 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         
         <label style="font-weight:700; color:#94A3B8; font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">Départ</label>
         <select id="start-station" class="custom-select" onchange="updateStationComparison()"></select>
+
+        <label style="font-weight:700; color:#94A3B8; font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">Étape / Waypoint (Optionnel)</label>
+        <select id="waypoint-station" class="custom-select" onchange="updateStationComparison()">
+            <option value="-1">-- Aucune étape (Direct) --</option>
+        </select>
         
         <label style="font-weight:700; color:#94A3B8; font-size:11px; text-transform:uppercase; letter-spacing:0.4px;">Arrivée</label>
         <select id="target-station" class="custom-select" onchange="updateStationComparison()"></select>
@@ -711,6 +735,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             <div style="display:flex; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:10px;">
                 <button class="tab-btn active" onclick="switchCockpitTab('tab-charts', this)">Graphiques</button>
                 <button class="tab-btn" onclick="switchCockpitTab('tab-algos', this)">Performances</button>
+                <button class="tab-btn" onclick="switchCockpitTab('tab-health', this)">Santé Réseau</button>
             </div>
 
             <div id="tab-charts">
@@ -747,6 +772,24 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
                     <div style="display:flex; justify-content:space-between;">
                         <span>Graphe Delaunay :</span>
                         <b style="color:#34D399;">{len(edges):,} arêtes</b>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-health" style="display:none; font-size:11px;">
+                <div style="color:#94A3B8; font-weight:800; text-transform:uppercase; margin-bottom:6px;">Santé & Satiété Réseau</div>
+                <div style="background:rgba(0,0,0,0.3); padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); margin-bottom:8px;">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span>Taux d'occupation global :</span>
+                        <b style="color:#34D399;">{taux_remplissage_pct}%</b>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span>Stations en alerte pénurie :</span>
+                        <b style="color:#EF4444;">{stations_vides_count}</b>
+                    </div>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>Stations saturées (0 dock) :</span>
+                        <b style="color:#F59E0B;">{stations_saturees_count}</b>
                     </div>
                 </div>
             </div>
@@ -834,6 +877,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     function switchCockpitTab(tabId, btn) {{
         document.getElementById("tab-charts").style.display = "none";
         document.getElementById("tab-algos").style.display = "none";
+        document.getElementById("tab-health").style.display = "none";
         document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
         document.getElementById(tabId).style.display = "block";
         btn.classList.add("active");
@@ -866,10 +910,12 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     function initVelibApp() {{
         const selectStart = document.getElementById("start-station");
         const selectTarget = document.getElementById("target-station");
+        const selectWaypoint = document.getElementById("waypoint-station");
         if (!selectStart || !selectTarget) return;
 
         selectStart.innerHTML = "";
         selectTarget.innerHTML = "";
+        if (selectWaypoint) selectWaypoint.innerHTML = "<option value='-1'>-- Aucune étape (Direct) --</option>";
         
         STATIONS.forEach(s => {{
             let opt1 = document.createElement("option");
@@ -881,6 +927,13 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             opt2.value = s.idx;
             opt2.textContent = s.nom + " (" + s.commune + ")";
             selectTarget.appendChild(opt2);
+
+            if (selectWaypoint) {{
+                let opt3 = document.createElement("option");
+                opt3.value = s.idx;
+                opt3.textContent = s.nom + " (" + s.commune + ")";
+                selectWaypoint.appendChild(opt3);
+            }}
         }});
         
         selectStart.selectedIndex = {default_start_idx};
@@ -1001,26 +1054,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         }}
     }}
 
-    function calculateRoute() {{
-        const selectStart = document.getElementById("start-station");
-        const selectTarget = document.getElementById("target-station");
-        if (!selectStart || !selectTarget) return;
-
-        const uStart = parseInt(selectStart.value);
-        const uTarget = parseInt(selectTarget.value);
-        
-        if (isNaN(uStart) || isNaN(uTarget)) {{
-            alert("Veuillez sélectionner une station de départ et d'arrivée.");
-            return;
-        }}
-
-        if (uStart === uTarget) {{
-            alert("Veuillez choisir deux stations différentes.");
-            return;
-        }}
-
-        updateStationComparison();
-        
+    function dijkstraPathBetween(uStart, uTarget) {{
         const n = STATIONS.length;
         const adj = Array.from({{ length: n }}, () => []);
         EDGES.forEach(e => {{
@@ -1049,10 +1083,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             }});
         }}
         
-        if (dist[uTarget] === Infinity) {{
-            alert("Aucun itinéraire trouvé entre ces deux stations.");
-            return;
-        }}
+        if (dist[uTarget] === Infinity) return null;
 
         const path = [];
         let curr = uTarget;
@@ -1061,8 +1092,53 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             curr = parent[curr];
         }}
         path.reverse();
+        return {{ path, dist: dist[uTarget] }};
+    }}
+
+    function calculateRoute() {{
+        const selectStart = document.getElementById("start-station");
+        const selectTarget = document.getElementById("target-station");
+        const selectWaypoint = document.getElementById("waypoint-station");
+        if (!selectStart || !selectTarget) return;
+
+        const uStart = parseInt(selectStart.value);
+        const uTarget = parseInt(selectTarget.value);
+        const uWaypoint = selectWaypoint ? parseInt(selectWaypoint.value) : -1;
         
-        const totalDistKm = dist[uTarget];
+        if (isNaN(uStart) || isNaN(uTarget)) {{
+            alert("Veuillez sélectionner une station de départ et d'arrivée.");
+            return;
+        }}
+
+        if (uStart === uTarget) {{
+            alert("Veuillez choisir deux stations différentes.");
+            return;
+        }}
+
+        updateStationComparison();
+
+        let fullPath = [];
+        let totalDistKm = 0;
+
+        if (uWaypoint !== -1 && uWaypoint !== uStart && uWaypoint !== uTarget) {{
+            const leg1 = dijkstraPathBetween(uStart, uWaypoint);
+            const leg2 = dijkstraPathBetween(uWaypoint, uTarget);
+            if (!leg1 || !leg2) {{
+                alert("Aucun itinéraire trouvé passant par cette étape.");
+                return;
+            }}
+            fullPath = leg1.path.concat(leg2.path.slice(1));
+            totalDistKm = leg1.dist + leg2.dist;
+        }} else {{
+            const res = dijkstraPathBetween(uStart, uTarget);
+            if (!res) {{
+                alert("Aucun itinéraire trouvé entre ces deux stations.");
+                return;
+            }}
+            fullPath = res.path;
+            totalDistKm = res.dist;
+        }}
+
         const minutes = Math.max(1, Math.round((totalDistKm / 15) * 60));
         const co2Saved = Math.round(totalDistKm * 120);
         
@@ -1071,14 +1147,14 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
 
         document.getElementById("route-dist").textContent = totalDistKm.toFixed(2) + " km";
         document.getElementById("route-time").textContent = minutes + " min";
-        document.getElementById("route-hops").textContent = path.length + " stations";
+        document.getElementById("route-hops").textContent = fullPath.length + " stations";
         document.getElementById("route-co2").textContent = co2Saved + " g CO₂";
         
         const mapObj = getLeafletMap();
         if (mapObj) {{
             if (activeRouteLayer) mapObj.removeLayer(activeRouteLayer);
             
-            const routeCoords = path.map(idx => [STATIONS[idx].lat, STATIONS[idx].lon]);
+            const routeCoords = fullPath.map(idx => [STATIONS[idx].lat, STATIONS[idx].lon]);
             activeRouteLayer = L.polyline(routeCoords, {{
                 color: '#EF4444',
                 weight: 6,
