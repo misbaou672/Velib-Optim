@@ -2,17 +2,17 @@
   "metriques_generales": {
     "total_stations": 1518,
     "total_communes": 69,
-    "total_velos_dispo_temps_reel": 19143,
-    "total_velos_electriques": 7749,
-    "total_bornettes_libres_temps_reel": 28257,
+    "total_velos_dispo_temps_reel": 18583,
+    "total_velos_electriques": 7335,
+    "total_bornettes_libres_temps_reel": 28753,
     "capacite_totale_velos": 49060,
-    "stations_penurie_vides": 57,
-    "stations_saturees_pleines": 48,
+    "stations_penurie_vides": 60,
+    "stations_saturees_pleines": 43,
     "distance_mst_totale_km": 502.09,
     "nombre_connexions_delaunay": 4536,
     "distance_inter_station_moyenne_km": 0.563,
-    "temps_kruskal_ms": 6.08,
-    "temps_prim_ms": 52.42
+    "temps_kruskal_ms": 10.38,
+    "temps_prim_ms": 12.55
   },
   "top_10_stations_capacite": [
     {
@@ -34,34 +34,34 @@
       "numbikesavailable": 27
     },
     {
-      "nom": "Jean Macé - Faidherbe",
-      "commune": "Paris",
-      "capacite": 78,
-      "numbikesavailable": 50
-    },
-    {
       "nom": "Pau Casals - Neuve Tolbiac",
       "commune": "Paris",
       "capacite": 78,
-      "numbikesavailable": 1
+      "numbikesavailable": 12
+    },
+    {
+      "nom": "Jean Macé - Faidherbe",
+      "commune": "Paris",
+      "capacite": 78,
+      "numbikesavailable": 19
     },
     {
       "nom": "Assemblée Nationale",
       "commune": "Paris",
       "capacite": 76,
-      "numbikesavailable": 21
+      "numbikesavailable": 6
     },
     {
       "nom": "Gare d'Austerlitz - Pont Charles de Gaulle",
       "commune": "Paris",
       "capacite": 75,
-      "numbikesavailable": 52
+      "numbikesavailable": 26
     },
     {
-      "nom": "Alexandre Dumas - Voltaire",
+      "nom": "Emeriau - Beaugrenelle",
       "commune": "Paris",
       "capacite": 74,
-      "numbikesavailable": 18
+      "numbikesavailable": 54
     },
     {
       "nom": "M.- A. Lagroua Weill-Hallé -  F. Dolto",
@@ -70,10 +70,10 @@
       "numbikesavailable": 3
     },
     {
-      "nom": "Emeriau - Beaugrenelle",
+      "nom": "Alexandre Dumas - Voltaire",
       "commune": "Paris",
       "capacite": 74,
-      "numbikesavailable": 54
+      "numbikesavailable": 11
     }
   ],
   "repartition_par_commune": {
@@ -87,10 +87,10 @@
     "Créteil": 17,
     "Vitry-sur-Seine": 17,
     "Montrouge": 13,
-    "Neuilly-sur-Seine": 13,
     "Aubervilliers": 13,
     "Clichy": 13,
     "Asnières-sur-Seine": 13,
+    "Neuilly-sur-Seine": 13,
     "Fontenay-sous-Bois": 12
   }
 }
