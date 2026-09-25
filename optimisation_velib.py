@@ -353,7 +353,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         })
 
         popup_html = f"""
-        <div style="font-family: system-ui, -apple-system, sans-serif; min-width:210px;">
+        <div data-velib="{idx}" style="font-family: system-ui, -apple-system, sans-serif; min-width:210px;">
             <div style="font-weight:700; color:#1E40AF; font-size:14px; margin-bottom:4px;">{row['nom']}</div>
             <div style="color:#475569; font-size:12px; display:flex; align-items:center; gap:5px; margin-bottom:6px;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -363,15 +363,15 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:8px; margin:6px 0; font-size:11px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                     <span style="color:#334155; font-weight:600;">🚲 Vélos dispo :</span>
-                    <b style="color:#059669; font-size:13px;">{bikes_dispo}</b>
+                    <b class="v-bikes" style="color:#059669; font-size:13px;">{bikes_dispo}</b>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:10px; color:#64748B; margin-bottom:4px; padding-left:8px;">
-                    <span>⚡ Elec: <b>{ebikes}</b></span>
-                    <span>🚲 Méca: <b>{mech}</b></span>
+                    <span>⚡ Elec: <b class="v-ebike">{ebikes}</b></span>
+                    <span>🚲 Méca: <b class="v-mech">{mech}</b></span>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #CBD5E1; padding-top:4px;">
                     <span style="color:#334155; font-weight:600;">🔌 Bornettes libres :</span>
-                    <b style="color:#2563EB; font-size:12px;">{docks_dispo} / {capa}</b>
+                    <b class="v-docks" style="color:#2563EB; font-size:12px;">{docks_dispo} / {capa}</b>
                 </div>
             </div>
 
@@ -468,6 +468,10 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     communes_top = df['commune'].value_counts().head(6)
     chart_commune_labels = communes_top.index.tolist()
     chart_commune_values = communes_top.values.tolist()
+
+    # Sert de repli au badge de fraicheur quand l'API est injoignable : le
+    # lecteur doit toujours savoir de quand datent les chiffres affiches.
+    date_generation = time.strftime("%d/%m/%Y à %Hh%M")
 
     dashboard_ui_html = f"""
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -911,6 +915,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     </div>
 
     <script>
+    const VELIB_GENERE_LE = "{date_generation}";
     const STATIONS = {json.dumps(stations_js_data)};
     const EDGES = {json.dumps(edges_js)};
     const DELAUNAY_VAR_NAME = "{delaunay_var_name}";
@@ -1082,10 +1087,153 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         }}
     }}
 
-    if (document.readyState === "loading") {{
-        document.addEventListener("DOMContentLoaded", initVelibApp);
-    }} else {{
+    /* ------------------------------------------------------------------
+       Disponibilites : ecrites dans la page a la generation, rafraichies
+       a l'ouverture.
+
+       Les compteurs de velos sont un etat, pas un fait : ils ne sont vrais
+       qu'a l'instant du releve. Cuits dans le HTML, ils vieillissent des la
+       publication. On les recharge donc ici depuis l'API OpenData, qui
+       autorise les appels navigateur (`access-control-allow-origin: *`).
+
+       Les coordonnees, la capacite et le reseau optimise ne bougent pas :
+       ils restent dans la page, et la triangulation n'est pas recalculee.
+       Un seul appel suffit — l'export filtre sur six champs pese environ
+       210 Ko pour les 1500 stations, la ou l'endpoint `records` en aurait
+       demande seize.
+       ------------------------------------------------------------------ */
+    const VELIB_EXPORT =
+        "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/" +
+        "velib-disponibilite-en-temps-reel/exports/json" +
+        "?select=stationcode,numbikesavailable,numdocksavailable,ebike,mechanical,duedate" +
+        "&limit=-1";
+
+    function poserFraicheur(texte, direct) {{
+        let badge = document.getElementById("velib-fraicheur");
+        if (!badge) {{
+            badge = document.createElement("div");
+            badge.id = "velib-fraicheur";
+            badge.style.cssText =
+                "position:fixed; left:12px; bottom:12px; z-index:9999;" +
+                "font-family:system-ui,-apple-system,sans-serif; font-size:11px;" +
+                "padding:6px 11px; border-radius:99px; backdrop-filter:blur(6px);" +
+                "display:flex; align-items:center; gap:6px; pointer-events:none;";
+            document.body.appendChild(badge);
+        }}
+        badge.style.background = direct ? "rgba(5,150,105,0.12)" : "rgba(100,116,139,0.12)";
+        badge.style.border = "1px solid " + (direct ? "rgba(5,150,105,0.45)" : "rgba(100,116,139,0.35)");
+        badge.style.color = direct ? "#047857" : "#475569";
+        badge.textContent = texte;
+    }}
+
+    /** Ecrit dans un popup les valeurs courantes de sa station. */
+    function majBloc(bloc) {{
+        const s = STATIONS[Number(bloc.dataset.velib)];
+        if (!s) return;
+        const ecrire = (sel, v) => {{
+            const el = bloc.querySelector(sel);
+            if (el) el.textContent = v;
+        }};
+        ecrire(".v-bikes", s.bikes);
+        ecrire(".v-ebike", s.ebike);
+        ecrire(".v-mech", s.mech);
+        ecrire(".v-docks", s.docks + " / " + s.capacite);
+    }}
+
+    /* Folium conserve le contenu de chaque popup dans une variable globale
+       `html_<hash>` : un element DOM detache, qui n'entre dans la page qu'au
+       premier clic sur le marqueur. On le met a jour la ou il vit, sans
+       attendre son insertion — sinon un popup ouvert plus tard afficherait
+       encore les valeurs de la generation. */
+    function collecterBlocs() {{
+        const blocs = [];
+        document.querySelectorAll("[data-velib]").forEach(b => blocs.push(b));
+        Object.keys(window).forEach(cle => {{
+            if (!cle.startsWith("html_")) return;
+            const v = window[cle];
+            const el = v instanceof Element ? v : (v && v[0] instanceof Element ? v[0] : null);
+            if (!el) return;
+            const bloc = el.matches("[data-velib]") ? el : el.querySelector("[data-velib]");
+            if (bloc) blocs.push(bloc);
+        }});
+        return blocs;
+    }}
+
+    function rafraichirPopups() {{
+        collecterBlocs().forEach(majBloc);
+    }}
+
+    /* Folium ne construit le contenu d'un popup qu'au moment du clic : le
+       parcourir une fois au chargement ne trouve rien. On observe donc le
+       document et on ecrit les valeurs dans chaque popup au moment ou il
+       entre dans la page. Patcher meme avant que l'API ait repondu est sans
+       effet visible — on y remet alors les valeurs deja affichees. */
+    function surveillerPopups() {{
+        const parcourir = noeud => {{
+            if (noeud.nodeType !== 1) return;
+            if (noeud.matches("[data-velib]")) majBloc(noeud);
+            noeud.querySelectorAll("[data-velib]").forEach(majBloc);
+        }};
+        new MutationObserver(mutations => {{
+            mutations.forEach(m => m.addedNodes.forEach(parcourir));
+        }}).observe(document.body, {{ childList: true, subtree: true }});
+    }}
+
+    async function rafraichirDisponibilites() {{
+        const reponse = await fetch(VELIB_EXPORT, {{ cache: "no-store" }});
+        if (!reponse.ok) throw new Error("HTTP " + reponse.status);
+        const lignes = await reponse.json();
+
+        const parCode = new Map(lignes.map(l => [String(l.stationcode), l]));
+        let touchees = 0;
+        let releve = null;
+
+        STATIONS.forEach(s => {{
+            const l = parCode.get(String(s.id));
+            if (!l) return;              // station fermee ou disparue depuis
+            s.bikes = l.numbikesavailable;
+            s.docks = l.numdocksavailable;
+            s.ebike = l.ebike;
+            s.mech = l.mechanical;
+            touchees++;
+            if (l.duedate && (!releve || l.duedate > releve)) releve = l.duedate;
+        }});
+
+        if (!touchees) throw new Error("aucune station reconnue");
+        return {{ touchees, releve }};
+    }}
+
+    /* Le rafraichissement ne conditionne pas l'affichage : la carte s'ouvre
+       avec ses valeurs de generation, et l'appel les remplace quand il
+       aboutit. Si l'API est indisponible, la page reste utilisable et le
+       badge dit franchement de quand datent les chiffres. */
+    function demarrerVelib() {{
         initVelibApp();
+        surveillerPopups();
+        poserFraicheur("Disponibilités du " + VELIB_GENERE_LE + " — mise à jour…", false);
+        rafraichirDisponibilites()
+            .then(({{ touchees, releve }}) => {{
+                rafraichirPopups();
+                const d = releve ? new Date(releve) : new Date();
+                poserFraicheur(
+                    "Disponibilités en direct — relevé du " +
+                        d.toLocaleDateString("fr-FR") +
+                        " à " +
+                        d.toLocaleTimeString("fr-FR", {{ hour: "2-digit", minute: "2-digit" }}) +
+                        " (" + touchees + " stations)",
+                    true
+                );
+            }})
+            .catch(err => {{
+                console.warn("[velib] rafraichissement impossible :", err.message);
+                poserFraicheur("Disponibilités du " + VELIB_GENERE_LE + " (API injoignable)", false);
+            }});
+    }}
+
+    if (document.readyState === "loading") {{
+        document.addEventListener("DOMContentLoaded", demarrerVelib);
+    }} else {{
+        demarrerVelib();
     }}
 
     function toggleStatsDrawer() {{

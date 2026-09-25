@@ -1,24 +1,36 @@
 {
   "metriques_generales": {
-    "total_stations": 1518,
+    "total_stations": 1519,
     "total_communes": 69,
-    "total_velos_dispo_temps_reel": 18583,
-    "total_velos_electriques": 7335,
-    "total_bornettes_libres_temps_reel": 28753,
-    "capacite_totale_velos": 49060,
-    "stations_penurie_vides": 60,
-    "stations_saturees_pleines": 43,
-    "distance_mst_totale_km": 502.09,
-    "nombre_connexions_delaunay": 4536,
-    "distance_inter_station_moyenne_km": 0.563,
-    "temps_kruskal_ms": 10.38,
-    "temps_prim_ms": 12.55
+    "total_velos_dispo_temps_reel": 15401,
+    "total_velos_electriques": 5180,
+    "total_bornettes_libres_temps_reel": 32735,
+    "capacite_totale_velos": 49874,
+    "stations_penurie_vides": 145,
+    "stations_saturees_pleines": 31,
+    "distance_mst_totale_km": 502.02,
+    "nombre_connexions_delaunay": 4539,
+    "distance_inter_station_moyenne_km": 0.562,
+    "temps_kruskal_ms": 5.4,
+    "temps_prim_ms": 48.54
   },
   "top_10_stations_capacite": [
     {
+      "nom": "Invalides - Quai d'Orsay",
+      "commune": "Paris",
+      "capacite": 410,
+      "numbikesavailable": 1
+    },
+    {
+      "nom": "Concorde - Place de la Madeleine",
+      "commune": "Paris",
+      "capacite": 409,
+      "numbikesavailable": 0
+    },
+    {
       "nom": "Station Tour de France",
       "commune": "Paris",
-      "capacite": 204,
+      "capacite": 200,
       "numbikesavailable": 0
     },
     {
@@ -28,56 +40,44 @@
       "numbikesavailable": 3
     },
     {
-      "nom": "Hôpital Européen Georges Pompidou",
-      "commune": "Paris",
-      "capacite": 78,
-      "numbikesavailable": 27
-    },
-    {
       "nom": "Pau Casals - Neuve Tolbiac",
-      "commune": "Paris",
-      "capacite": 78,
-      "numbikesavailable": 12
-    },
-    {
-      "nom": "Jean Macé - Faidherbe",
       "commune": "Paris",
       "capacite": 78,
       "numbikesavailable": 19
     },
     {
+      "nom": "Hôpital Européen Georges Pompidou",
+      "commune": "Paris",
+      "capacite": 78,
+      "numbikesavailable": 18
+    },
+    {
+      "nom": "Jean Macé - Faidherbe",
+      "commune": "Paris",
+      "capacite": 78,
+      "numbikesavailable": 67
+    },
+    {
       "nom": "Assemblée Nationale",
       "commune": "Paris",
       "capacite": 76,
-      "numbikesavailable": 6
+      "numbikesavailable": 5
     },
     {
       "nom": "Gare d'Austerlitz - Pont Charles de Gaulle",
       "commune": "Paris",
       "capacite": 75,
-      "numbikesavailable": 26
+      "numbikesavailable": 63
     },
     {
       "nom": "Emeriau - Beaugrenelle",
       "commune": "Paris",
       "capacite": 74,
-      "numbikesavailable": 54
-    },
-    {
-      "nom": "M.- A. Lagroua Weill-Hallé -  F. Dolto",
-      "commune": "Paris",
-      "capacite": 74,
-      "numbikesavailable": 3
-    },
-    {
-      "nom": "Alexandre Dumas - Voltaire",
-      "commune": "Paris",
-      "capacite": 74,
-      "numbikesavailable": 11
+      "numbikesavailable": 63
     }
   ],
   "repartition_par_commune": {
-    "Paris": 994,
+    "Paris": 996,
     "Boulogne-Billancourt": 30,
     "Montreuil": 23,
     "Issy-les-Moulineaux": 22,
@@ -86,11 +86,11 @@
     "Ivry-sur-Seine": 18,
     "Créteil": 17,
     "Vitry-sur-Seine": 17,
-    "Montrouge": 13,
     "Aubervilliers": 13,
-    "Clichy": 13,
     "Asnières-sur-Seine": 13,
+    "Montrouge": 13,
     "Neuilly-sur-Seine": 13,
+    "Clichy": 13,
     "Fontenay-sous-Bois": 12
   }
 }
