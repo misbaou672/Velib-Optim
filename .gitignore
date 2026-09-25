@@ -2,4 +2,6 @@ __pycache__/
 *.pyc
 *.pyo
 .DS_Store
-carte_velib_optimisee.html
+
+# `carte_velib_optimisee.html` n'est volontairement plus ignore :
+# c'est la page publiee par GitHub Pages.
