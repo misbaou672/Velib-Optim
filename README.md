@@ -4,6 +4,8 @@ Ce projet d'analyse spatiale et d'optimisation algorithmique a pour but d'analys
 
 ## 📸 Aperçu de l'interface et des graphes
 
+**[Voir la carte en ligne](https://misbaou672.github.io/Velib-Optim/carte_velib_optimisee.html)**
+
 | Cartographie Interactive | Analyse Spatiale (Zoom) |
 | :---: | :---: |
 | <img src="media/velib.jpg" width="400" alt="Cartographie Vélib"> | <img src="media/velib-zoom.jpg" width="400" alt="Détail réseau"> |
