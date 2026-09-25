@@ -33,6 +33,16 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 DATA_FILE = os.path.join(DATA_DIR, "stations_velib_idf_complete.json")
 OUTPUT_MAP = os.path.join(BASE_DIR, "carte_velib_optimisee.html")
 REPORT_FILE = os.path.join(BASE_DIR, "rapport_statistiques_velib.json")
+
+
+def fr(n):
+    """Nombre a la francaise, avec espace fine insecable.
+
+    Le navigateur formate les valeurs rafraichies avec `toLocaleString("fr-FR")`.
+    Sans equivalent cote Python, le bandeau afficherait « 1,519 » juste a cote
+    de « 15 405 ».
+    """
+    return f"{n:,}".replace(",", "\u202f")
 GRAPH_IMAGE = os.path.join(DATA_DIR, "graphiques_velib.png")
 OPENDATA_URL = "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/exports/json?limit=-1"
 
@@ -326,7 +336,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     HeatMap(heat_data, radius=12, blur=15, max_zoom=13).add_to(heatmap_group)
     heatmap_group.add_to(m)
 
-    marker_cluster = MarkerCluster(name=f"Stations Vélib ({total_stations:,})").add_to(m)
+    marker_cluster = MarkerCluster(name=f"Stations Vélib ({fr(total_stations)})").add_to(m)
 
     stations_js_data = []
     coords_list = []
@@ -353,7 +363,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         })
 
         popup_html = f"""
-        <div style="font-family: system-ui, -apple-system, sans-serif; min-width:210px;">
+        <div data-velib="{idx}" style="font-family: system-ui, -apple-system, sans-serif; min-width:210px;">
             <div style="font-weight:700; color:#1E40AF; font-size:14px; margin-bottom:4px;">{row['nom']}</div>
             <div style="color:#475569; font-size:12px; display:flex; align-items:center; gap:5px; margin-bottom:6px;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -363,15 +373,15 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:8px; padding:8px; margin:6px 0; font-size:11px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                     <span style="color:#334155; font-weight:600;">🚲 Vélos dispo :</span>
-                    <b style="color:#059669; font-size:13px;">{bikes_dispo}</b>
+                    <b class="v-bikes" style="color:#059669; font-size:13px;">{bikes_dispo}</b>
                 </div>
                 <div style="display:flex; justify-content:space-between; font-size:10px; color:#64748B; margin-bottom:4px; padding-left:8px;">
-                    <span>⚡ Elec: <b>{ebikes}</b></span>
-                    <span>🚲 Méca: <b>{mech}</b></span>
+                    <span>⚡ Elec: <b class="v-ebike">{ebikes}</b></span>
+                    <span>🚲 Méca: <b class="v-mech">{mech}</b></span>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed #CBD5E1; padding-top:4px;">
                     <span style="color:#334155; font-weight:600;">🔌 Bornettes libres :</span>
-                    <b style="color:#2563EB; font-size:12px;">{docks_dispo} / {capa}</b>
+                    <b class="v-docks" style="color:#2563EB; font-size:12px;">{docks_dispo} / {capa}</b>
                 </div>
             </div>
 
@@ -468,6 +478,10 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     communes_top = df['commune'].value_counts().head(6)
     chart_commune_labels = communes_top.index.tolist()
     chart_commune_values = communes_top.values.tolist()
+
+    # Sert de repli au badge de fraicheur quand l'API est injoignable : le
+    # lecteur doit toujours savoir de quand datent les chiffres affiches.
+    date_generation = time.strftime("%d/%m/%Y à %Hh%M")
 
     dashboard_ui_html = f"""
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -661,25 +675,94 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         }}
     }}
 
-    @media (max-width: 650px) {{
+    /* Sous 768 px, le panneau d'itineraire occupait pres de la moitie de la
+       hauteur utile : sur un telephone de 844 px, ses 411 px ne laissaient
+       qu'une bande de carte au milieu. Il devient un tiroir ancre en bas,
+       replie sur son en-tete, que l'on deploie d'une pression. La carte
+       reprend toute la page, ce qui est la raison d'etre de la page. */
+    @media (max-width: 768px) {{
         #cockpit-search-bar {{
             width: calc(100vw - 30px) !important;
         }}
+
         #route-panel {{
-            width: calc(100vw - 30px) !important;
-            right: 15px !important;
-            left: 15px !important;
-            top: 65px !important;
-            max-height: calc(100vh - 120px) !important;
+            top: auto !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            max-height: 82vh !important;
+            border-radius: 18px 18px 0 0 !important;
+            padding: 10px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+            overflow: hidden !important;
+            /* `floatIn` se termine sur un `transform` conserve par `forwards` :
+               il ecraserait la translation du tiroir. */
+            animation: none !important;
+            transform: translateY(calc(100% - 54px));
+            transition: transform 0.28s ease;
         }}
+        #route-panel.tiroir-ouvert {{
+            transform: translateY(0);
+            overflow-y: auto !important;
+        }}
+        /* Poignee : sans eleement a saisir, rien ne dit que le panneau s'ouvre. */
+        #route-panel::before {{
+            content: "";
+            display: block;
+            width: 38px;
+            height: 4px;
+            margin: 0 auto 10px;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.32);
+        }}
+        #route-panel-tete {{
+            cursor: pointer;
+            margin-bottom: 10px !important;
+        }}
+        #route-panel-chevron {{
+            display: inline-block !important;
+        }}
+        #route-panel.tiroir-ouvert #route-panel-chevron {{
+            transform: rotate(180deg);
+        }}
+
+        /* Ouvert, le tiroir occupe le bas de l'ecran : la legende, fixee,
+           passerait par-dessus son contenu. Elle s'efface le temps de la
+           consultation et revient au repli. */
+        body.tiroir-ouvert #bottom-legend-banner {{
+            opacity: 0;
+            visibility: hidden;
+        }}
+
+        /* Le selecteur de couches, deplie, couvrait le quart de l'ecran.
+           Il se replie sur son icone, et s'ouvre a la pression. */
+        .leaflet-control-layers {{
+            transition: opacity 0.2s ease;
+        }}
+        /* Leaflet masque l'icone des qu'il est deplie : sur un grand ecran on
+           referme en sortant a la souris, au doigt il ne resterait aucun moyen
+           de le refermer. L'icone reste donc visible et sert de fermeture. */
+        .leaflet-control-layers-expanded .leaflet-control-layers-toggle {{
+            display: block !important;
+            margin-bottom: 6px;
+        }}
+        body.tiroir-ouvert .leaflet-control-layers {{
+            opacity: 0;
+            pointer-events: none;
+        }}
+
+        /* La legende remonte au-dessus du tiroir replie, sinon elle passe
+           dessous et devient illisible. */
         #bottom-legend-banner {{
+            transition: opacity 0.2s ease;
             width: calc(100vw - 30px) !important;
-            bottom: 10px !important;
+            bottom: calc(66px + env(safe-area-inset-bottom, 0px)) !important;
             font-size: 10px !important;
             padding: 6px 12px !important;
             border-radius: 14px !important;
         }}
     }}
+
     </style>
 
     <!-- Cockpit Live Search Bar (Top Left Panel) -->
@@ -705,7 +788,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             </div>
             <div>
                 <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Stations</div>
-                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{total_stations:,}</div>
+                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{fr(total_stations)}</div>
             </div>
         </div>
         <div class="kpi-card">
@@ -717,7 +800,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
                     <span>Vélos Dispo (Live)</span>
                     <span style="width:6px; height:6px; border-radius:50%; background:#34D399; box-shadow:0 0 6px #34D399;"></span>
                 </div>
-                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{total_velos_dispo:,}</div>
+                <div id="kpi-velos" style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{fr(total_velos_dispo)}</div>
             </div>
         </div>
         <div class="kpi-card">
@@ -735,7 +818,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             </div>
             <div>
                 <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Vélos Élec.</div>
-                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{total_ebikes:,}</div>
+                <div id="kpi-elec" style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{fr(total_ebikes)}</div>
             </div>
         </div>
     </div>
@@ -744,12 +827,15 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     <div id="route-panel" class="glass-panel" style="
         position: fixed; top: 75px; right: 15px; width: min(310px, 90vw); border-radius: 16px; padding: 16px; z-index: 9999; font-size: 12px; animation: floatIn 0.6s ease-out forwards;
     ">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div id="route-panel-tete" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <div style="font-weight:800; color:#F8FAFC; font-size:14px; display:flex; align-items:center; gap:8px;">
                 <div style="width:24px; height:24px; border-radius:6px; background:rgba(99, 102, 241, 0.2); display:flex; align-items:center; justify-content:center; color:#818CF8;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></svg>
                 </div>
                 <span>Cockpit Itinéraire</span>
+                <svg id="route-panel-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                     style="display:none; color:#94A3B8; transition:transform 0.28s ease;"><path d="m18 15-6-6-6 6"/></svg>
             </div>
             <button onclick="toggleStatsDrawer()" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#94A3B8; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; transition:all 0.2s;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -911,6 +997,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     </div>
 
     <script>
+    const VELIB_GENERE_LE = "{date_generation}";
     const STATIONS = {json.dumps(stations_js_data)};
     const EDGES = {json.dumps(edges_js)};
     const DELAUNAY_VAR_NAME = "{delaunay_var_name}";
@@ -1082,10 +1169,282 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         }}
     }}
 
-    if (document.readyState === "loading") {{
-        document.addEventListener("DOMContentLoaded", initVelibApp);
-    }} else {{
+    /* ------------------------------------------------------------------
+       Disponibilites : ecrites dans la page a la generation, rafraichies
+       a l'ouverture.
+
+       Les compteurs de velos sont un etat, pas un fait : ils ne sont vrais
+       qu'a l'instant du releve. Cuits dans le HTML, ils vieillissent des la
+       publication. On les recharge donc ici depuis l'API OpenData, qui
+       autorise les appels navigateur (`access-control-allow-origin: *`).
+
+       Les coordonnees, la capacite et le reseau optimise ne bougent pas :
+       ils restent dans la page, et la triangulation n'est pas recalculee.
+       Un seul appel suffit — l'export filtre sur six champs pese environ
+       210 Ko pour les 1500 stations, la ou l'endpoint `records` en aurait
+       demande seize.
+       ------------------------------------------------------------------ */
+    const VELIB_EXPORT =
+        "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/" +
+        "velib-disponibilite-en-temps-reel/exports/json" +
+        "?select=stationcode,numbikesavailable,numdocksavailable,ebike,mechanical,duedate" +
+        "&limit=-1";
+
+    /* La fraicheur s'affiche parmi les autres metriques, dans le bandeau du
+       haut : c'est la que la carte annonce « Velos dispo (Live) », donc la que
+       le lecteur doit pouvoir verifier de quand datent les chiffres. Une
+       pastille flottante en bas a gauche recouvrait la legende du maillage. */
+    function poserFraicheur(titre, valeur, direct) {{
+        const bandeau = document.getElementById("kpi-banner");
+        const teinte = direct ? "#34D399" : "#94A3B8";
+
+        if (!bandeau) {{  // repli : la carte peut etre generee sans bandeau
+            let pastille = document.getElementById("velib-fraicheur");
+            if (!pastille) {{
+                pastille = document.createElement("div");
+                pastille.id = "velib-fraicheur";
+                pastille.style.cssText =
+                    "position:fixed; left:12px; top:12px; z-index:9999; pointer-events:none;" +
+                    "font-family:system-ui,-apple-system,sans-serif; font-size:11px;" +
+                    "padding:6px 11px; border-radius:99px; background:rgba(15,23,42,0.85); color:#E2E8F0;";
+                document.body.appendChild(pastille);
+            }}
+            pastille.textContent = titre + " — " + valeur;
+            return;
+        }}
+
+        let carte = document.getElementById("velib-fraicheur");
+        if (!carte) {{
+            carte = document.createElement("div");
+            carte.id = "velib-fraicheur";
+            carte.className = "kpi-card";
+            carte.innerHTML =
+                '<div class="kpi-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"' +
+                ' stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/>' +
+                '<path d="M12 7v5l3 2"/></svg></div>' +
+                '<div><div class="f-titre" style="font-size:9px; text-transform:uppercase; font-weight:800;' +
+                ' letter-spacing:0.5px;"></div><div class="f-valeur" style="font-size:15px; font-weight:800;' +
+                ' color:#F8FAFC;"></div></div>';
+            bandeau.appendChild(carte);
+        }}
+        carte.querySelector(".kpi-icon").style.color = teinte;
+        carte.querySelector(".kpi-icon").style.background = direct
+            ? "rgba(52, 211, 153, 0.15)"
+            : "rgba(148, 163, 184, 0.15)";
+        carte.querySelector(".f-titre").style.color = teinte;
+        carte.querySelector(".f-titre").textContent = titre;
+        carte.querySelector(".f-valeur").textContent = valeur;
+    }}
+
+    /* Le bandeau annonce des totaux calcules a la generation : sans cela, le
+       chiffre en gros resterait celui d'il y a six jours pendant que les
+       popups, eux, diraient vrai. */
+    function rafraichirTotaux() {{
+        const somme = champ => STATIONS.reduce((t, s) => t + (Number(s[champ]) || 0), 0);
+        const ecrire = (id, v) => {{
+            const el = document.getElementById(id);
+            if (el) el.textContent = v.toLocaleString("fr-FR");
+        }};
+        ecrire("kpi-velos", somme("bikes"));
+        ecrire("kpi-elec", somme("ebike"));
+    }}
+
+    /** Ecrit dans un popup les valeurs courantes de sa station. */
+    function majBloc(bloc) {{
+        const s = STATIONS[Number(bloc.dataset.velib)];
+        if (!s) return;
+        const ecrire = (sel, v) => {{
+            const el = bloc.querySelector(sel);
+            if (el) el.textContent = v;
+        }};
+        ecrire(".v-bikes", s.bikes);
+        ecrire(".v-ebike", s.ebike);
+        ecrire(".v-mech", s.mech);
+        ecrire(".v-docks", s.docks + " / " + s.capacite);
+    }}
+
+    /* Folium conserve le contenu de chaque popup dans une variable globale
+       `html_<hash>` : un element DOM detache, qui n'entre dans la page qu'au
+       premier clic sur le marqueur. On le met a jour la ou il vit, sans
+       attendre son insertion — sinon un popup ouvert plus tard afficherait
+       encore les valeurs de la generation. */
+    function collecterBlocs() {{
+        const blocs = [];
+        document.querySelectorAll("[data-velib]").forEach(b => blocs.push(b));
+        Object.keys(window).forEach(cle => {{
+            if (!cle.startsWith("html_")) return;
+            const v = window[cle];
+            const el = v instanceof Element ? v : (v && v[0] instanceof Element ? v[0] : null);
+            if (!el) return;
+            const bloc = el.matches("[data-velib]") ? el : el.querySelector("[data-velib]");
+            if (bloc) blocs.push(bloc);
+        }});
+        return blocs;
+    }}
+
+    function rafraichirPopups() {{
+        collecterBlocs().forEach(majBloc);
+    }}
+
+    /* Folium ne construit le contenu d'un popup qu'au moment du clic : le
+       parcourir une fois au chargement ne trouve rien. On observe donc le
+       document et on ecrit les valeurs dans chaque popup au moment ou il
+       entre dans la page. Patcher meme avant que l'API ait repondu est sans
+       effet visible — on y remet alors les valeurs deja affichees. */
+    function surveillerPopups() {{
+        const parcourir = noeud => {{
+            if (noeud.nodeType !== 1) return;
+            if (noeud.matches("[data-velib]")) majBloc(noeud);
+            noeud.querySelectorAll("[data-velib]").forEach(majBloc);
+        }};
+        new MutationObserver(mutations => {{
+            mutations.forEach(m => m.addedNodes.forEach(parcourir));
+        }}).observe(document.body, {{ childList: true, subtree: true }});
+    }}
+
+    async function rafraichirDisponibilites() {{
+        const reponse = await fetch(VELIB_EXPORT, {{ cache: "no-store" }});
+        if (!reponse.ok) throw new Error("HTTP " + reponse.status);
+        const lignes = await reponse.json();
+
+        const parCode = new Map(lignes.map(l => [String(l.stationcode), l]));
+        let touchees = 0;
+        let releve = null;
+
+        STATIONS.forEach(s => {{
+            const l = parCode.get(String(s.id));
+            if (!l) return;              // station fermee ou disparue depuis
+            s.bikes = l.numbikesavailable;
+            s.docks = l.numdocksavailable;
+            s.ebike = l.ebike;
+            s.mech = l.mechanical;
+            touchees++;
+            if (l.duedate && (!releve || l.duedate > releve)) releve = l.duedate;
+        }});
+
+        if (!touchees) throw new Error("aucune station reconnue");
+        return {{ touchees, releve }};
+    }}
+
+    /* Le rafraichissement ne conditionne pas l'affichage : la carte s'ouvre
+       avec ses valeurs de generation, et l'appel les remplace quand il
+       aboutit. Si l'API est indisponible, la page reste utilisable et le
+       badge dit franchement de quand datent les chiffres. */
+    /* Le tiroir n'existe qu'en dessous de 768 px : au-dela, le panneau garde
+       sa place a droite et l'en-tete ne doit rien declencher. On interroge la
+       requete media a chaque pression plutot que de poser l'ecouteur une seule
+       fois, pour suivre une rotation d'ecran. */
+    function installerTiroirMobile() {{
+        const panneau = document.getElementById("route-panel");
+        const tete = document.getElementById("route-panel-tete");
+        if (!panneau || !tete) return;
+        const surTelephone = () => window.matchMedia("(max-width: 768px)").matches;
+
+        tete.setAttribute("role", "button");
+        tete.setAttribute("tabindex", "0");
+        tete.setAttribute("aria-controls", "route-panel");
+        tete.setAttribute("aria-expanded", "false");
+
+        const basculer = evenement => {{
+            if (!surTelephone()) return;
+            // Le bouton Analytics vit dans l'en-tete : il garde son action.
+            if (evenement.target.closest("button")) return;
+            const ouvert = panneau.classList.toggle("tiroir-ouvert");
+            // Le corps porte l'etat : la legende et le selecteur de couches,
+            // tous deux fixes, doivent s'effacer sans connaitre le tiroir.
+            document.body.classList.toggle("tiroir-ouvert", ouvert);
+            tete.setAttribute("aria-expanded", ouvert ? "true" : "false");
+        }};
+
+        tete.addEventListener("click", basculer);
+        tete.addEventListener("keydown", e => {{
+            if (e.key === "Enter" || e.key === " ") {{
+                e.preventDefault();
+                basculer(e);
+            }}
+        }});
+
+        // Repli au retour vers un grand ecran : la classe n'y a plus de sens.
+        window.matchMedia("(max-width: 768px)").addEventListener("change", e => {{
+            if (!e.matches) {{
+                panneau.classList.remove("tiroir-ouvert");
+                document.body.classList.remove("tiroir-ouvert");
+                tete.setAttribute("aria-expanded", "false");
+            }}
+        }});
+    }}
+
+    /* Folium construit le selecteur de couches deplie (`collapsed=False`), ce
+       qui convient a un grand ecran et couvre le quart d'un telephone. Leaflet
+       ne pose ses propres ecouteurs d'ouverture que dans le mode replie : on
+       retire la classe et on gere la pression nous-memes.
+
+       Par delegation, et non par un ecouteur pose sur le bouton : le controle
+       n'est pas toujours dans le document quand cette fonction s'execute, et
+       un ecouteur pose sur un element absent ne se rattrape jamais. En phase
+       de capture, pour passer avant les gestionnaires de Leaflet. */
+    function compacterControleCouches() {{
+        const requete = window.matchMedia("(max-width: 768px)");
+
+        const appliquer = () => {{
+            document.querySelectorAll(".leaflet-control-layers").forEach(controle => {{
+                controle.classList.toggle("leaflet-control-layers-expanded", !requete.matches);
+            }});
+        }};
+        appliquer();
+        requete.addEventListener("change", appliquer);
+        // Le controle peut arriver apres nous : on repasse une fois la page chargee.
+        window.addEventListener("load", appliquer);
+
+        document.addEventListener("click", evenement => {{
+            if (!requete.matches) return;
+            const bouton = evenement.target.closest?.(".leaflet-control-layers-toggle");
+            if (!bouton) return;
+            evenement.preventDefault();
+            evenement.stopPropagation();
+            bouton.closest(".leaflet-control-layers")
+                  .classList.toggle("leaflet-control-layers-expanded");
+        }}, true);
+
+        /* Une pression ailleurs referme : c'est le geste attendu au doigt, et
+           cela evite que la liste reste ouverte sur la carte. */
+        document.addEventListener("click", evenement => {{
+            if (!requete.matches) return;
+            if (evenement.target.closest?.(".leaflet-control-layers")) return;
+            document.querySelectorAll(".leaflet-control-layers-expanded").forEach(controle => {{
+                controle.classList.remove("leaflet-control-layers-expanded");
+            }});
+        }});
+    }}
+
+    function demarrerVelib() {{
         initVelibApp();
+        surveillerPopups();
+        installerTiroirMobile();
+        compacterControleCouches();
+        poserFraicheur("Relevé", VELIB_GENERE_LE + " · mise à jour…", false);
+        rafraichirDisponibilites()
+            .then(({{ touchees, releve }}) => {{
+                rafraichirPopups();
+                const d = releve ? new Date(releve) : new Date();
+                rafraichirTotaux();
+                poserFraicheur(
+                    "Relevé en direct",
+                    d.toLocaleTimeString("fr-FR", {{ hour: "2-digit", minute: "2-digit" }}) +
+                        " · " + touchees.toLocaleString("fr-FR") + " stations",
+                    true
+                );
+            }})
+            .catch(err => {{
+                console.warn("[velib] rafraichissement impossible :", err.message);
+                poserFraicheur("Relevé", VELIB_GENERE_LE + " · API injoignable", false);
+            }});
+    }}
+
+    if (document.readyState === "loading") {{
+        document.addEventListener("DOMContentLoaded", demarrerVelib);
+    }} else {{
+        demarrerVelib();
     }}
 
     function toggleStatsDrawer() {{
