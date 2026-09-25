@@ -33,6 +33,16 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 DATA_FILE = os.path.join(DATA_DIR, "stations_velib_idf_complete.json")
 OUTPUT_MAP = os.path.join(BASE_DIR, "carte_velib_optimisee.html")
 REPORT_FILE = os.path.join(BASE_DIR, "rapport_statistiques_velib.json")
+
+
+def fr(n):
+    """Nombre a la francaise, avec espace fine insecable.
+
+    Le navigateur formate les valeurs rafraichies avec `toLocaleString("fr-FR")`.
+    Sans equivalent cote Python, le bandeau afficherait « 1,519 » juste a cote
+    de « 15 405 ».
+    """
+    return f"{n:,}".replace(",", "\u202f")
 GRAPH_IMAGE = os.path.join(DATA_DIR, "graphiques_velib.png")
 OPENDATA_URL = "https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/velib-disponibilite-en-temps-reel/exports/json?limit=-1"
 
@@ -326,7 +336,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     HeatMap(heat_data, radius=12, blur=15, max_zoom=13).add_to(heatmap_group)
     heatmap_group.add_to(m)
 
-    marker_cluster = MarkerCluster(name=f"Stations Vélib ({total_stations:,})").add_to(m)
+    marker_cluster = MarkerCluster(name=f"Stations Vélib ({fr(total_stations)})").add_to(m)
 
     stations_js_data = []
     coords_list = []
@@ -709,7 +719,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             </div>
             <div>
                 <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Stations</div>
-                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{total_stations:,}</div>
+                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{fr(total_stations)}</div>
             </div>
         </div>
         <div class="kpi-card">
@@ -721,7 +731,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
                     <span>Vélos Dispo (Live)</span>
                     <span style="width:6px; height:6px; border-radius:50%; background:#34D399; box-shadow:0 0 6px #34D399;"></span>
                 </div>
-                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{total_velos_dispo:,}</div>
+                <div id="kpi-velos" style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{fr(total_velos_dispo)}</div>
             </div>
         </div>
         <div class="kpi-card">
@@ -739,7 +749,7 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
             </div>
             <div>
                 <div style="font-size: 9px; color: #94A3B8; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;">Vélos Élec.</div>
-                <div style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{total_ebikes:,}</div>
+                <div id="kpi-elec" style="font-size: 15px; font-weight: 800; color: #F8FAFC;">{fr(total_ebikes)}</div>
             </div>
         </div>
     </div>
@@ -1108,22 +1118,63 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         "?select=stationcode,numbikesavailable,numdocksavailable,ebike,mechanical,duedate" +
         "&limit=-1";
 
-    function poserFraicheur(texte, direct) {{
-        let badge = document.getElementById("velib-fraicheur");
-        if (!badge) {{
-            badge = document.createElement("div");
-            badge.id = "velib-fraicheur";
-            badge.style.cssText =
-                "position:fixed; left:12px; bottom:12px; z-index:9999;" +
-                "font-family:system-ui,-apple-system,sans-serif; font-size:11px;" +
-                "padding:6px 11px; border-radius:99px; backdrop-filter:blur(6px);" +
-                "display:flex; align-items:center; gap:6px; pointer-events:none;";
-            document.body.appendChild(badge);
+    /* La fraicheur s'affiche parmi les autres metriques, dans le bandeau du
+       haut : c'est la que la carte annonce « Velos dispo (Live) », donc la que
+       le lecteur doit pouvoir verifier de quand datent les chiffres. Une
+       pastille flottante en bas a gauche recouvrait la legende du maillage. */
+    function poserFraicheur(titre, valeur, direct) {{
+        const bandeau = document.getElementById("kpi-banner");
+        const teinte = direct ? "#34D399" : "#94A3B8";
+
+        if (!bandeau) {{  // repli : la carte peut etre generee sans bandeau
+            let pastille = document.getElementById("velib-fraicheur");
+            if (!pastille) {{
+                pastille = document.createElement("div");
+                pastille.id = "velib-fraicheur";
+                pastille.style.cssText =
+                    "position:fixed; left:12px; top:12px; z-index:9999; pointer-events:none;" +
+                    "font-family:system-ui,-apple-system,sans-serif; font-size:11px;" +
+                    "padding:6px 11px; border-radius:99px; background:rgba(15,23,42,0.85); color:#E2E8F0;";
+                document.body.appendChild(pastille);
+            }}
+            pastille.textContent = titre + " — " + valeur;
+            return;
         }}
-        badge.style.background = direct ? "rgba(5,150,105,0.12)" : "rgba(100,116,139,0.12)";
-        badge.style.border = "1px solid " + (direct ? "rgba(5,150,105,0.45)" : "rgba(100,116,139,0.35)");
-        badge.style.color = direct ? "#047857" : "#475569";
-        badge.textContent = texte;
+
+        let carte = document.getElementById("velib-fraicheur");
+        if (!carte) {{
+            carte = document.createElement("div");
+            carte.id = "velib-fraicheur";
+            carte.className = "kpi-card";
+            carte.innerHTML =
+                '<div class="kpi-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"' +
+                ' stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/>' +
+                '<path d="M12 7v5l3 2"/></svg></div>' +
+                '<div><div class="f-titre" style="font-size:9px; text-transform:uppercase; font-weight:800;' +
+                ' letter-spacing:0.5px;"></div><div class="f-valeur" style="font-size:15px; font-weight:800;' +
+                ' color:#F8FAFC;"></div></div>';
+            bandeau.appendChild(carte);
+        }}
+        carte.querySelector(".kpi-icon").style.color = teinte;
+        carte.querySelector(".kpi-icon").style.background = direct
+            ? "rgba(52, 211, 153, 0.15)"
+            : "rgba(148, 163, 184, 0.15)";
+        carte.querySelector(".f-titre").style.color = teinte;
+        carte.querySelector(".f-titre").textContent = titre;
+        carte.querySelector(".f-valeur").textContent = valeur;
+    }}
+
+    /* Le bandeau annonce des totaux calcules a la generation : sans cela, le
+       chiffre en gros resterait celui d'il y a six jours pendant que les
+       popups, eux, diraient vrai. */
+    function rafraichirTotaux() {{
+        const somme = champ => STATIONS.reduce((t, s) => t + (Number(s[champ]) || 0), 0);
+        const ecrire = (id, v) => {{
+            const el = document.getElementById(id);
+            if (el) el.textContent = v.toLocaleString("fr-FR");
+        }};
+        ecrire("kpi-velos", somme("bikes"));
+        ecrire("kpi-elec", somme("ebike"));
     }}
 
     /** Ecrit dans un popup les valeurs courantes de sa station. */
@@ -1210,23 +1261,22 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     function demarrerVelib() {{
         initVelibApp();
         surveillerPopups();
-        poserFraicheur("Disponibilités du " + VELIB_GENERE_LE + " — mise à jour…", false);
+        poserFraicheur("Relevé", VELIB_GENERE_LE + " · mise à jour…", false);
         rafraichirDisponibilites()
             .then(({{ touchees, releve }}) => {{
                 rafraichirPopups();
                 const d = releve ? new Date(releve) : new Date();
+                rafraichirTotaux();
                 poserFraicheur(
-                    "Disponibilités en direct — relevé du " +
-                        d.toLocaleDateString("fr-FR") +
-                        " à " +
-                        d.toLocaleTimeString("fr-FR", {{ hour: "2-digit", minute: "2-digit" }}) +
-                        " (" + touchees + " stations)",
+                    "Relevé en direct",
+                    d.toLocaleTimeString("fr-FR", {{ hour: "2-digit", minute: "2-digit" }}) +
+                        " · " + touchees.toLocaleString("fr-FR") + " stations",
                     true
                 );
             }})
             .catch(err => {{
                 console.warn("[velib] rafraichissement impossible :", err.message);
-                poserFraicheur("Disponibilités du " + VELIB_GENERE_LE + " (API injoignable)", false);
+                poserFraicheur("Relevé", VELIB_GENERE_LE + " · API injoignable", false);
             }});
     }}
 
