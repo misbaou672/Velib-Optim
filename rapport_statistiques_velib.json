@@ -2,17 +2,17 @@
   "metriques_generales": {
     "total_stations": 1519,
     "total_communes": 69,
-    "total_velos_dispo_temps_reel": 15455,
-    "total_velos_electriques": 5192,
-    "total_bornettes_libres_temps_reel": 32682,
+    "total_velos_dispo_temps_reel": 15448,
+    "total_velos_electriques": 5204,
+    "total_bornettes_libres_temps_reel": 32686,
     "capacite_totale_velos": 49874,
-    "stations_penurie_vides": 140,
-    "stations_saturees_pleines": 32,
+    "stations_penurie_vides": 138,
+    "stations_saturees_pleines": 28,
     "distance_mst_totale_km": 502.02,
     "nombre_connexions_delaunay": 4539,
     "distance_inter_station_moyenne_km": 0.562,
-    "temps_kruskal_ms": 5.73,
-    "temps_prim_ms": 49.7
+    "temps_kruskal_ms": 5.3,
+    "temps_prim_ms": 48.81
   },
   "top_10_stations_capacite": [
     {
@@ -40,22 +40,22 @@
       "numbikesavailable": 3
     },
     {
-      "nom": "Jean Macé - Faidherbe",
-      "commune": "Paris",
-      "capacite": 78,
-      "numbikesavailable": 66
-    },
-    {
       "nom": "Hôpital Européen Georges Pompidou",
       "commune": "Paris",
       "capacite": 78,
-      "numbikesavailable": 19
+      "numbikesavailable": 17
     },
     {
       "nom": "Pau Casals - Neuve Tolbiac",
       "commune": "Paris",
       "capacite": 78,
-      "numbikesavailable": 20
+      "numbikesavailable": 15
+    },
+    {
+      "nom": "Jean Macé - Faidherbe",
+      "commune": "Paris",
+      "capacite": 78,
+      "numbikesavailable": 60
     },
     {
       "nom": "Assemblée Nationale",
@@ -67,13 +67,13 @@
       "nom": "Gare d'Austerlitz - Pont Charles de Gaulle",
       "commune": "Paris",
       "capacite": 75,
-      "numbikesavailable": 64
+      "numbikesavailable": 60
     },
     {
-      "nom": "Emeriau - Beaugrenelle",
+      "nom": "Alexandre Dumas - Voltaire",
       "commune": "Paris",
       "capacite": 74,
-      "numbikesavailable": 63
+      "numbikesavailable": 2
     }
   ],
   "repartition_par_commune": {
@@ -86,11 +86,11 @@
     "Ivry-sur-Seine": 18,
     "Vitry-sur-Seine": 17,
     "Créteil": 17,
-    "Clichy": 13,
-    "Montrouge": 13,
     "Asnières-sur-Seine": 13,
+    "Montrouge": 13,
     "Neuilly-sur-Seine": 13,
     "Aubervilliers": 13,
+    "Clichy": 13,
     "Fontenay-sous-Bois": 12
   }
 }

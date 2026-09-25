@@ -675,25 +675,94 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
         }}
     }}
 
-    @media (max-width: 650px) {{
+    /* Sous 768 px, le panneau d'itineraire occupait pres de la moitie de la
+       hauteur utile : sur un telephone de 844 px, ses 411 px ne laissaient
+       qu'une bande de carte au milieu. Il devient un tiroir ancre en bas,
+       replie sur son en-tete, que l'on deploie d'une pression. La carte
+       reprend toute la page, ce qui est la raison d'etre de la page. */
+    @media (max-width: 768px) {{
         #cockpit-search-bar {{
             width: calc(100vw - 30px) !important;
         }}
+
         #route-panel {{
-            width: calc(100vw - 30px) !important;
-            right: 15px !important;
-            left: 15px !important;
-            top: 65px !important;
-            max-height: calc(100vh - 120px) !important;
+            top: auto !important;
+            bottom: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            width: 100% !important;
+            max-height: 82vh !important;
+            border-radius: 18px 18px 0 0 !important;
+            padding: 10px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+            overflow: hidden !important;
+            /* `floatIn` se termine sur un `transform` conserve par `forwards` :
+               il ecraserait la translation du tiroir. */
+            animation: none !important;
+            transform: translateY(calc(100% - 54px));
+            transition: transform 0.28s ease;
         }}
+        #route-panel.tiroir-ouvert {{
+            transform: translateY(0);
+            overflow-y: auto !important;
+        }}
+        /* Poignee : sans eleement a saisir, rien ne dit que le panneau s'ouvre. */
+        #route-panel::before {{
+            content: "";
+            display: block;
+            width: 38px;
+            height: 4px;
+            margin: 0 auto 10px;
+            border-radius: 99px;
+            background: rgba(255, 255, 255, 0.32);
+        }}
+        #route-panel-tete {{
+            cursor: pointer;
+            margin-bottom: 10px !important;
+        }}
+        #route-panel-chevron {{
+            display: inline-block !important;
+        }}
+        #route-panel.tiroir-ouvert #route-panel-chevron {{
+            transform: rotate(180deg);
+        }}
+
+        /* Ouvert, le tiroir occupe le bas de l'ecran : la legende, fixee,
+           passerait par-dessus son contenu. Elle s'efface le temps de la
+           consultation et revient au repli. */
+        body.tiroir-ouvert #bottom-legend-banner {{
+            opacity: 0;
+            visibility: hidden;
+        }}
+
+        /* Le selecteur de couches, deplie, couvrait le quart de l'ecran.
+           Il se replie sur son icone, et s'ouvre a la pression. */
+        .leaflet-control-layers {{
+            transition: opacity 0.2s ease;
+        }}
+        /* Leaflet masque l'icone des qu'il est deplie : sur un grand ecran on
+           referme en sortant a la souris, au doigt il ne resterait aucun moyen
+           de le refermer. L'icone reste donc visible et sert de fermeture. */
+        .leaflet-control-layers-expanded .leaflet-control-layers-toggle {{
+            display: block !important;
+            margin-bottom: 6px;
+        }}
+        body.tiroir-ouvert .leaflet-control-layers {{
+            opacity: 0;
+            pointer-events: none;
+        }}
+
+        /* La legende remonte au-dessus du tiroir replie, sinon elle passe
+           dessous et devient illisible. */
         #bottom-legend-banner {{
+            transition: opacity 0.2s ease;
             width: calc(100vw - 30px) !important;
-            bottom: 10px !important;
+            bottom: calc(66px + env(safe-area-inset-bottom, 0px)) !important;
             font-size: 10px !important;
             padding: 6px 12px !important;
             border-radius: 14px !important;
         }}
     }}
+
     </style>
 
     <!-- Cockpit Live Search Bar (Top Left Panel) -->
@@ -758,12 +827,15 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
     <div id="route-panel" class="glass-panel" style="
         position: fixed; top: 75px; right: 15px; width: min(310px, 90vw); border-radius: 16px; padding: 16px; z-index: 9999; font-size: 12px; animation: floatIn 0.6s ease-out forwards;
     ">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div id="route-panel-tete" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
             <div style="font-weight:800; color:#F8FAFC; font-size:14px; display:flex; align-items:center; gap:8px;">
                 <div style="width:24px; height:24px; border-radius:6px; background:rgba(99, 102, 241, 0.2); display:flex; align-items:center; justify-content:center; color:#818CF8;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="m16.24 7.76-2.12 6.36-6.36 2.12 2.12-6.36z"/></svg>
                 </div>
                 <span>Cockpit Itinéraire</span>
+                <svg id="route-panel-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                     style="display:none; color:#94A3B8; transition:transform 0.28s ease;"><path d="m18 15-6-6-6 6"/></svg>
             </div>
             <button onclick="toggleStatsDrawer()" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#94A3B8; padding:4px 10px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; transition:all 0.2s;">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
@@ -1258,9 +1330,98 @@ def generer_carte_html_interactive(df, tri, mst_edges, edges, time_kruskal=5.5, 
        avec ses valeurs de generation, et l'appel les remplace quand il
        aboutit. Si l'API est indisponible, la page reste utilisable et le
        badge dit franchement de quand datent les chiffres. */
+    /* Le tiroir n'existe qu'en dessous de 768 px : au-dela, le panneau garde
+       sa place a droite et l'en-tete ne doit rien declencher. On interroge la
+       requete media a chaque pression plutot que de poser l'ecouteur une seule
+       fois, pour suivre une rotation d'ecran. */
+    function installerTiroirMobile() {{
+        const panneau = document.getElementById("route-panel");
+        const tete = document.getElementById("route-panel-tete");
+        if (!panneau || !tete) return;
+        const surTelephone = () => window.matchMedia("(max-width: 768px)").matches;
+
+        tete.setAttribute("role", "button");
+        tete.setAttribute("tabindex", "0");
+        tete.setAttribute("aria-controls", "route-panel");
+        tete.setAttribute("aria-expanded", "false");
+
+        const basculer = evenement => {{
+            if (!surTelephone()) return;
+            // Le bouton Analytics vit dans l'en-tete : il garde son action.
+            if (evenement.target.closest("button")) return;
+            const ouvert = panneau.classList.toggle("tiroir-ouvert");
+            // Le corps porte l'etat : la legende et le selecteur de couches,
+            // tous deux fixes, doivent s'effacer sans connaitre le tiroir.
+            document.body.classList.toggle("tiroir-ouvert", ouvert);
+            tete.setAttribute("aria-expanded", ouvert ? "true" : "false");
+        }};
+
+        tete.addEventListener("click", basculer);
+        tete.addEventListener("keydown", e => {{
+            if (e.key === "Enter" || e.key === " ") {{
+                e.preventDefault();
+                basculer(e);
+            }}
+        }});
+
+        // Repli au retour vers un grand ecran : la classe n'y a plus de sens.
+        window.matchMedia("(max-width: 768px)").addEventListener("change", e => {{
+            if (!e.matches) {{
+                panneau.classList.remove("tiroir-ouvert");
+                document.body.classList.remove("tiroir-ouvert");
+                tete.setAttribute("aria-expanded", "false");
+            }}
+        }});
+    }}
+
+    /* Folium construit le selecteur de couches deplie (`collapsed=False`), ce
+       qui convient a un grand ecran et couvre le quart d'un telephone. Leaflet
+       ne pose ses propres ecouteurs d'ouverture que dans le mode replie : on
+       retire la classe et on gere la pression nous-memes.
+
+       Par delegation, et non par un ecouteur pose sur le bouton : le controle
+       n'est pas toujours dans le document quand cette fonction s'execute, et
+       un ecouteur pose sur un element absent ne se rattrape jamais. En phase
+       de capture, pour passer avant les gestionnaires de Leaflet. */
+    function compacterControleCouches() {{
+        const requete = window.matchMedia("(max-width: 768px)");
+
+        const appliquer = () => {{
+            document.querySelectorAll(".leaflet-control-layers").forEach(controle => {{
+                controle.classList.toggle("leaflet-control-layers-expanded", !requete.matches);
+            }});
+        }};
+        appliquer();
+        requete.addEventListener("change", appliquer);
+        // Le controle peut arriver apres nous : on repasse une fois la page chargee.
+        window.addEventListener("load", appliquer);
+
+        document.addEventListener("click", evenement => {{
+            if (!requete.matches) return;
+            const bouton = evenement.target.closest?.(".leaflet-control-layers-toggle");
+            if (!bouton) return;
+            evenement.preventDefault();
+            evenement.stopPropagation();
+            bouton.closest(".leaflet-control-layers")
+                  .classList.toggle("leaflet-control-layers-expanded");
+        }}, true);
+
+        /* Une pression ailleurs referme : c'est le geste attendu au doigt, et
+           cela evite que la liste reste ouverte sur la carte. */
+        document.addEventListener("click", evenement => {{
+            if (!requete.matches) return;
+            if (evenement.target.closest?.(".leaflet-control-layers")) return;
+            document.querySelectorAll(".leaflet-control-layers-expanded").forEach(controle => {{
+                controle.classList.remove("leaflet-control-layers-expanded");
+            }});
+        }});
+    }}
+
     function demarrerVelib() {{
         initVelibApp();
         surveillerPopups();
+        installerTiroirMobile();
+        compacterControleCouches();
         poserFraicheur("Relevé", VELIB_GENERE_LE + " · mise à jour…", false);
         rafraichirDisponibilites()
             .then(({{ touchees, releve }}) => {{
